@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Strike &amp; Shield — Trading-Dashboard</title>
+<style>
+:root{
+  --bg:#f3f5f9; --bg2:#e9edf4; --panel:#ffffff; --panel2:#f6f8fb;
+  --text:#182230; --mut:#5e6a7b; --line:#e1e6ee; --line2:#edf0f6;
+  --accent:#2e63d8; --accent-ink:#ffffff; --glow:rgba(46,99,216,.30);
+  --green:#1e9e57; --red:#d24b42; --amber:#a8730f;
+  --strike:#d4544a; --shield:#2f7fc4; --chipbg:#eef1f6;
+  --shadow:0 12px 34px -22px rgba(24,36,58,.30), 0 1px 3px rgba(24,36,58,.05);
+  --serif:'Iowan Old Style',Georgia,'Times New Roman',serif;
+  --mono:ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,monospace;
+}
+[data-theme=dark]{
+  --bg:#090d12; --bg2:#0c1118; --panel:#0f141c; --panel2:#0b1016;
+  --text:#ece7dc; --mut:#8a94a4; --line:#1c2431; --line2:#151c27;
+  --accent:#e0b26a; --accent-ink:#160f06; --glow:rgba(224,178,106,.32);
+  --green:#46d087; --red:#ff6b5e; --amber:#e5b567;
+  --strike:#ff7f6c; --shield:#66abef; --chipbg:#141b25;
+  --shadow:0 18px 52px -30px rgba(0,0,0,.85), inset 0 1px 0 rgba(255,255,255,.025);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  background:radial-gradient(1100px 600px at 88% -12%, var(--bg2), transparent), var(--bg);
+  color:var(--text); min-height:100vh; padding:18px 16px 60px;
+  transition:background .3s,color .3s; font-size:15px}
+.wrap{max-width:1180px;margin:0 auto}
+h3{font-family:var(--mono)}
+/* ---------- Topbar ---------- */
+.topbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px}
+.brand{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.brand-name{font-family:var(--serif);font-weight:700;font-size:23px;letter-spacing:.01em}
+.brand-badge{font-family:var(--mono);font-size:10px;font-weight:600;text-transform:uppercase;
+  letter-spacing:.14em;color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 45%,transparent);
+  border-radius:8px;padding:4.5px 10px;background:color-mix(in srgb,var(--accent) 6%,transparent)}
+.spacer{flex:1}
+.pill{border:1px solid var(--line);background:var(--panel);border-radius:9px;
+  padding:6px 12px;font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.05em;
+  color:var(--mut);display:flex;gap:7px;align-items:center;text-transform:uppercase}
+.pill b{color:var(--text)}
+.dotc{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;
+  box-shadow:0 0 8px var(--green)}
+.dotc.off{background:#e08c3a;box-shadow:0 0 8px #e08c3a}
+/* Theme-Switch (oben links) */
+.theme{position:relative;width:60px;height:30px;border-radius:999px;border:1px solid var(--line);
+  background:var(--panel);cursor:pointer;flex:0 0 auto;transition:border-color .2s, box-shadow .2s}
+.theme:hover{border-color:var(--accent);box-shadow:0 0 14px var(--glow)}
+.theme .knob{position:absolute;top:2.5px;left:3px;width:23px;height:23px;border-radius:50%;
+  background:var(--accent);color:var(--accent-ink);display:flex;align-items:center;justify-content:center;
+  transition:left .25s cubic-bezier(.5,1.6,.4,1)}
+[data-theme=dark] .theme .knob{left:32px}
+:root:not([data-theme=dark]) .i-moon{display:none}
+[data-theme=dark] .i-sun{display:none}
+/* ---------- Tabs ---------- */
+.tabs{display:flex;gap:5px;background:var(--panel);border:1px solid var(--line);border-radius:14px;
+  padding:5px;box-shadow:var(--shadow);position:sticky;top:10px;z-index:50;overflow-x:auto;
+  -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+.tab{border:1px solid transparent;background:transparent;color:var(--mut);
+  font-family:var(--mono);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.07em;
+  padding:9px 15px;border-radius:9px;cursor:pointer;white-space:nowrap;
+  transition:all .18s}
+.tab.on{background:var(--accent);color:var(--accent-ink);box-shadow:0 0 20px var(--glow)}
+.tab:not(.on):hover{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 40%,transparent);
+  box-shadow:0 0 14px var(--glow)}
+main{margin-top:18px}
+.panel{display:none}
+.panel.on{display:block;animation:fadein .25s ease}
+@keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+/* ---------- Fenster ---------- */
+.win{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);
+  margin-bottom:20px;overflow:hidden}
+.win-bar{display:flex;align-items:center;gap:10px;padding:12px 18px;border-bottom:1px solid var(--line2);
+  background:var(--panel2)}
+.win-title{font-family:var(--mono);font-weight:700;font-size:11.5px;text-transform:uppercase;
+  letter-spacing:.11em;color:var(--text)}
+.win-title::before{content:'';display:inline-block;width:8px;height:8px;border-radius:2px;
+  background:var(--wa,var(--accent));margin-right:9px}
+.win-meta{margin-left:auto;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;
+  color:var(--mut);font-weight:600;text-transform:uppercase}
+.win-body{padding:18px}
+@media(max-width:640px){.win-body{padding:14px 12px}}
+/* ---------- KPI ---------- */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:10px;margin-bottom:16px}
+.kpi{background:var(--panel2);border:1px solid var(--line2);border-radius:12px;padding:12px 13px;
+  transition:border-color .2s}
+.kpi:hover{border-color:color-mix(in srgb,var(--accent) 35%,var(--line2))}
+.kpi .l{font-family:var(--mono);font-size:9.5px;font-weight:700;color:var(--mut);
+  text-transform:uppercase;letter-spacing:.13em}
+.kpi .v{font-family:var(--mono);font-size:18px;font-weight:700;margin-top:5px;letter-spacing:-.01em}
+.kpi .s{font-family:var(--mono);font-size:10.5px;color:var(--mut);margin-top:3px}
+.pos{color:var(--green)} .neg{color:var(--red)}
+/* ---------- Chart ---------- */
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.chip{display:flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:8px;
+  padding:5px 11px;font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.05em;
+  text-transform:uppercase;cursor:pointer;color:var(--text);
+  background:var(--panel2);user-select:none;transition:all .16s}
+.chip:hover{border-color:var(--accent);box-shadow:0 0 12px var(--glow)}
+.chip .sw{width:9px;height:9px;border-radius:2.5px}
+.chip.off{opacity:.36}
+.chartbox{position:relative;background:var(--panel2);border:1px solid var(--line2);border-radius:14px;padding:8px 4px 2px}
+.chartbox svg{display:block;width:100%;height:auto}
+.tip{position:absolute;pointer-events:none;background:var(--panel);border:1px solid var(--line);
+  border-radius:10px;box-shadow:var(--shadow);padding:8px 11px;font-family:var(--mono);
+  font-size:11px;display:none;z-index:5;min-width:150px}
+.tip b{font-variant-numeric:tabular-nums}
+.tip .d{font-weight:800;margin-bottom:4px}
+.tip .row{display:flex;align-items:center;gap:6px;margin-top:2px}
+.tip .sw{width:8px;height:8px;border-radius:2px}
+.note{font-size:12px;color:var(--mut);margin-top:8px}
+/* ---------- Tabellen ---------- */
+.tbl-scroll{overflow-x:auto;border:1px solid var(--line2);border-radius:12px;background:var(--panel2)}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:640px}
+th{font-family:var(--mono);font-size:9.5px;text-transform:uppercase;letter-spacing:.12em;
+  color:var(--mut);font-weight:700;
+  text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;cursor:pointer}
+th.num,td.num{text-align:right}
+td.num{font-family:var(--mono);font-size:12.5px}
+td{padding:9px 12px;border-bottom:1px solid var(--line2);white-space:nowrap}
+tr:last-child td{border-bottom:0}
+tbody tr:hover{background:color-mix(in srgb, var(--accent) 5%, transparent)}
+.sym{font-family:var(--mono);font-weight:700;letter-spacing:.03em}
+.kat{color:var(--amber);font-weight:700}
+.badge{display:inline-block;padding:2.5px 9px;border-radius:7px;font-family:var(--mono);
+  font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.b-nied{background:color-mix(in srgb,var(--green) 16%,transparent);color:var(--green)}
+.b-mitt{background:color-mix(in srgb,var(--amber) 18%,transparent);color:var(--amber)}
+.b-hoch{background:color-mix(in srgb,var(--red) 16%,transparent);color:var(--red)}
+.scorebar{display:inline-flex;align-items:center;gap:8px}
+.scorebar .bar{width:52px;height:6px;border-radius:4px;background:var(--line);overflow:hidden}
+.scorebar .fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--shield),var(--accent),var(--strike))}
+.distbar .bar{width:64px;height:6px;border-radius:4px;background:var(--line);overflow:hidden;display:inline-block;vertical-align:middle;margin-right:8px}
+.distbar .fill{height:100%;background:var(--accent)}
+/* ---------- Filter-Toolbar ---------- */
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.field{display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--line2);
+  border-radius:10px;padding:7px 12px;font-size:13px;transition:border-color .2s}
+.field:focus-within{border-color:var(--accent);box-shadow:0 0 12px var(--glow)}
+.field label{font-family:var(--mono);font-size:9.5px;font-weight:700;color:var(--mut);
+  text-transform:uppercase;letter-spacing:.12em}
+.field input[type=search]{border:0;background:transparent;color:var(--text);font-size:13px;outline:none;
+  width:120px;font-family:var(--mono)}
+.field input[type=range]{accent-color:var(--accent);width:110px}
+.field .val{font-family:var(--mono);font-weight:700;min-width:24px;text-align:right}
+.field select{font-family:var(--mono) !important;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+.fchip{border:1px solid var(--line);background:var(--panel2);border-radius:8px;padding:6px 12px;
+  font-family:var(--mono);font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+  cursor:pointer;color:var(--mut);transition:all .16s}
+.fchip:hover{border-color:var(--accent);color:var(--accent);box-shadow:0 0 12px var(--glow)}
+.fchip.on{color:#fff;border-color:transparent}
+.fchip.on.c-nied{background:var(--green);color:#0b2416}
+.fchip.on.c-mitt{background:var(--amber);color:#241a06}
+.fchip.on.c-hoch{background:var(--red);color:#fff}
+.fchip.on.c-any{background:var(--accent);color:var(--accent-ink)}
+.fchip.on:hover{color:inherit;box-shadow:0 0 14px var(--glow)}
+.count{font-family:var(--mono);font-size:11px;letter-spacing:.05em;color:var(--mut);
+  font-weight:600;margin-left:auto;text-transform:uppercase}
+/* ---------- Feed ---------- */
+.feed{display:flex;flex-direction:column;gap:8px}
+.ev{display:flex;align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--line2);
+  border-radius:10px;padding:8px 12px;font-size:13px}
+.ev .tag{font-family:var(--mono);font-size:10px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.07em;border-radius:7px;padding:3px 8px}
+.t-buy{background:color-mix(in srgb,var(--green) 15%,transparent);color:var(--green)}
+.t-sell{background:color-mix(in srgb,var(--red) 15%,transparent);color:var(--red)}
+.t-fund{background:color-mix(in srgb,var(--accent) 15%,transparent);color:var(--accent)}
+.ev .dt{color:var(--mut);font-family:var(--mono);font-size:11px;margin-left:auto}
+/* ---------- Erklär-Tab ---------- */
+.prose{line-height:1.62;font-size:14.5px}
+.prose p{margin-bottom:10px}
+.prose b{font-weight:800}
+.prose ul{margin:6px 0 12px 20px}
+.prose li{margin-bottom:5px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+@media(max-width:860px){.grid2{grid-template-columns:1fr}}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:8px 0 4px}
+.step{background:var(--panel2);border:1px solid var(--line2);border-radius:14px;padding:12px;position:relative}
+.step .n{width:22px;height:22px;border-radius:7px;background:var(--accent);color:var(--accent-ink);
+  font-family:var(--mono);font-size:11px;
+  font-weight:700;display:flex;align-items:center;justify-content:center;margin-bottom:8px}
+.step b{font-size:13px;display:block;margin-bottom:4px}
+.step p{font-size:12px;color:var(--mut);line-height:1.45}
+.cmp{min-width:520px}
+.cmp td:first-child{color:var(--mut);font-weight:700;font-size:12.5px}
+.cmp .hd{font-weight:800;font-size:14px}
+.warn{background:color-mix(in srgb,var(--amber) 8%,transparent);
+  border:1px solid color-mix(in srgb,var(--amber) 30%,transparent);
+  border-left:3px solid var(--amber);
+  border-radius:12px;padding:12px 14px;font-size:13.5px;line-height:1.55}
+footer{margin-top:26px;text-align:center;color:var(--mut);font-family:var(--mono);
+  font-size:10.5px;letter-spacing:.04em;line-height:1.8}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="theme" id="theme" title="Hell / Dunkel" role="button" aria-label="Theme wechseln"><div class="knob">
+      <svg class="i-sun" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4.4"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M19.1 4.9l-1.6 1.6M6.5 17.5l-1.6 1.6"/></svg>
+      <svg class="i-moon" viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M20.5 14.6A8.6 8.6 0 0 1 9.4 3.5a8.6 8.6 0 1 0 11.1 11.1z"/></svg>
+    </div></div>
+    <div class="brand"><span class="brand-name">Strike &amp; Shield</span><span class="brand-badge">US-Momentum · vollautomatisch · simuliert</span></div>
+    <div class="spacer"></div>
+    <div class="pill"><span class="dotc"></span>Markt: <b>Risk-on</b></div>
+    <div class="pill">Stand <b>22.07.2026 19:49</b></div>
+  </div>
+
+  <nav class="tabs">
+    <button class="tab" data-tab="depots">Depots</button>
+    <button class="tab" data-tab="scan">Stock-Scan</button>
+    <button class="tab" data-tab="watch">Watch-List</button>
+    <button class="tab" data-tab="sim" id="tab-sim">Sim 2026</button>
+    <button class="tab" data-tab="info">So funktioniert's</button>
+  </nav>
+
+  <main>
+  <section class="panel" data-panel="depots">
+    
+    <div class="win">
+      <div class="win-bar">  <span class="win-title" style="--wa:var(--strike)">STRIKE — das Angriffs-Depot</span>
+        <span class="win-meta">Tag 1 · seit 22.07.2026</span></div>
+      <div class="win-body">
+        <div class="kpis" id="kpi-strike"></div>
+        <div class="chips" id="chips-strike"></div>
+        <div class="chartbox" id="chart-strike"><svg></svg><div class="tip" id="tip-strike"></div></div>
+        <div class="note">Tag 1 — die Kurven wachsen ab jetzt mit jedem Handelstag.</div>
+        <h3 style="font-size:13px;margin:16px 0 8px;text-transform:uppercase;letter-spacing:.6px;color:var(--mut)">Offene Positionen</h3>
+        <div id="hold-strike"></div>
+        <h3 style="font-size:13px;margin:16px 0 8px;text-transform:uppercase;letter-spacing:.6px;color:var(--mut)">Letzte Buchungen</h3>
+        <div class="feed" id="feed-strike"></div>
+      </div>
+    </div>
+
+    <div class="win">
+      <div class="win-bar">  <span class="win-title" style="--wa:var(--shield)">SHIELD — das Schild-Depot</span>
+        <span class="win-meta">Tag 1 · seit 22.07.2026</span></div>
+      <div class="win-body">
+        <div class="kpis" id="kpi-shield"></div>
+        <div class="chips" id="chips-shield"></div>
+        <div class="chartbox" id="chart-shield"><svg></svg><div class="tip" id="tip-shield"></div></div>
+        <div class="note">Tag 1 — die Kurven wachsen ab jetzt mit jedem Handelstag.</div>
+        <h3 style="font-size:13px;margin:16px 0 8px;text-transform:uppercase;letter-spacing:.6px;color:var(--mut)">Offene Positionen</h3>
+        <div id="hold-shield"></div>
+        <h3 style="font-size:13px;margin:16px 0 8px;text-transform:uppercase;letter-spacing:.6px;color:var(--mut)">Letzte Buchungen</h3>
+        <div class="feed" id="feed-shield"></div>
+      </div>
+    </div>
+
+  </section>
+
+  <section class="panel" data-panel="scan">
+    <div class="win"><div class="win-bar"><span class="win-title">Stock-Scan — bestätigte Kaufsignale</span><span class="win-meta">Schluss über dem 20-Tage-Hoch · Aufwärtstrend</span></div>
+      <div class="win-body">
+        <div class="toolbar">
+          <div class="field"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" style="color:var(--mut);flex:0 0 auto"><circle cx="10.5" cy="10.5" r="6.2"/><path d="M15.3 15.3 20.5 20.5"/></svg><input type="search" id="scan-q" placeholder="Ticker suchen…"></div>
+          <div class="field"><label>Score ≥</label><input type="range" id="scan-score" min="0" max="100" step="5" value="0"><span class="val" id="scan-score-v">0</span></div>
+          <div class="field" id="scan-risk" style="gap:6px"><label>Risiko</label>
+            <button class="fchip on c-nied" data-r="Niedrig">Niedrig</button>
+            <button class="fchip on c-mitt" data-r="Mittel">Mittel</button>
+            <button class="fchip on c-hoch" data-r="Hoch">Hoch</button></div>
+          <div class="field"><label>Sortierung</label>
+            <select id="scan-sort" style="border:0;background:transparent;color:var(--text);font-weight:700;font-family:inherit;outline:none">
+              <option value="score">Score</option><option value="mom_1w">1-Wochen-Schub</option>
+              <option value="cat_gap">Katalysator</option><option value="sym">Name</option></select></div>
+          <span class="count" id="scan-count"></span>
+        </div>
+        <div id="scan-body"></div>
+        <div class="note">*„Kaufbar bis" = Kurs des bestätigten Ausbruchs (Entry-Referenz). Die Depots kaufen automatisch am nächsten Handelsmorgen zum Eröffnungskurs — sofern ein Slot frei ist. Stop = sofortige Verkaufsorder, falls die Idee scheitert.</div>
+      </div></div>
+  </section>
+
+  <section class="panel" data-panel="watch">
+    <div class="win"><div class="win-bar"><span class="win-title">Watch-List — kurz vor dem Signal</span><span class="win-meta">max. 4 % unterm Trigger</span></div>
+      <div class="win-body">
+        <div class="toolbar">
+          <div class="field"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" style="color:var(--mut);flex:0 0 auto"><circle cx="10.5" cy="10.5" r="6.2"/><path d="M15.3 15.3 20.5 20.5"/></svg><input type="search" id="watch-q" placeholder="Ticker suchen…"></div>
+          <div class="field"><label>Score ≥</label><input type="range" id="watch-score" min="0" max="100" step="5" value="0"><span class="val" id="watch-score-v">0</span></div>
+          <div class="field"><label>Abstand ≤</label><input type="range" id="watch-dist" min="0.5" max="4" step="0.5" value="4"><span class="val" id="watch-dist-v">4,0</span> %</div>
+          <button class="fchip c-any" id="watch-cat">nur mit Katalysator</button>
+          <span class="count" id="watch-count"></span>
+        </div>
+        <div id="watch-body"></div>
+        <div class="note">Diese Aktien haben noch KEIN Kaufsignal. Schließt eine über ihrem Trigger, wandert sie in den Stock-Scan — und die Depots kaufen am Morgen danach.</div>
+      </div></div>
+  </section>
+
+  <section class="panel" data-panel="sim">
+    <div class="win"><div class="win-bar"><span class="win-title">Simulation — erstes Halbjahr 2026</span><span class="win-meta">02.01.2026 – 30.06.2026</span></div>
+      <div class="win-body prose">
+        <p>So hätten die <b>heutigen Regeln</b> (Strike 4×25 %, Shield risiko-gewichtet) das erste Halbjahr 2026 gehandelt —
+        gleiche Startbedingungen wie live: <b>1.000 € Start + 500 €/Monat</b>, Kosten 0,15 %/Seite, echte Kurse.
+        Rückblick, kein Versprechen: die Zukunft kennt auch dieser Test nicht.</p>
+      </div></div>
+    
+    <div class="win">
+      <div class="win-bar">  <span class="win-title" style="--wa:var(--strike)">STRIKE — Simulation</span>
+        <span class="win-meta">02.01.2026 – 30.06.2026 · Regeln v2.2</span></div>
+      <div class="win-body">
+        <div class="kpis" id="kpi-sim-strike"></div>
+        <div class="chips" id="chips-sim-strike"></div>
+        <div class="chartbox" id="chart-sim-strike"><svg></svg><div class="tip" id="tip-sim-strike"></div></div>
+        <h3 style="font-size:13px;margin:16px 0 8px;text-transform:uppercase;letter-spacing:.6px;color:var(--mut)">Offene Positionen am Ende</h3>
+        <div id="hold-sim-strike"></div>
+        <h3 style="font-size:13px;margin:16px 0 8px;text-transform:uppercase;letter-spacing:.6px;color:var(--mut)">Trade-Log — jede Buchung</h3>
+        <div id="log-sim-strike"></div>
+      </div>
+    </div>
+
+    <div class="win">
+      <div class="win-bar">  <span class="win-title" style="--wa:var(--shield)">SHIELD — Simulation</span>
+        <span class="win-meta">02.01.2026 – 30.06.2026 · Regeln v2.2</span></div>
+      <div class="win-body">
+        <div class="kpis" id="kpi-sim-shield"></div>
+        <div class="chips" id="chips-sim-shield"></div>
+        <div class="chartbox" id="chart-sim-shield"><svg></svg><div class="tip" id="tip-sim-shield"></div></div>
+        <h3 style="font-size:13px;margin:16px 0 8px;text-transform:uppercase;letter-spacing:.6px;color:var(--mut)">Offene Positionen am Ende</h3>
+        <div id="hold-sim-shield"></div>
+        <h3 style="font-size:13px;margin:16px 0 8px;text-transform:uppercase;letter-spacing:.6px;color:var(--mut)">Trade-Log — jede Buchung</h3>
+        <div id="log-sim-shield"></div>
+      </div>
+    </div>
+
+  </section>
+
+  <section class="panel" data-panel="info">
+    <div class="win"><div class="win-bar"><span class="win-title">Das System in 30 Sekunden</span></div>
+      <div class="win-body prose">
+        <p>Dieses Dashboard zeigt zwei <b>vollautomatische, simulierte Depots</b>, die dieselbe Strategie handeln:
+        <b>US-Aktien kaufen, die gerade auf ein neues 20-Tage-Hoch ausbrechen</b> und im Aufwärtstrend sind (Kurs über der 200-Tage-Linie).
+        Jede Position bekommt sofort einen <b>Stop</b> (Notbremse), Gewinner werden <b>nicht verkauft, sondern nachgezogen</b> — so bleiben Verluste klein und die seltenen großen Läufer zahlen für alles.</p>
+        <p>Gescannt werden <b>~870 US-Titel</b> (alles ≥ 5 Mrd. $ Börsenwert, ohne Banken). Es gibt keine Meinung, kein Bauchgefühl, keine Ausnahme — <b>jede Regel ist mechanisch und wurde über 10 Jahre rückgetestet</b>.</p>
+      </div></div>
+
+    <div class="win"><div class="win-bar"><span class="win-title">Der Weg eines Signals</span></div>
+      <div class="win-body">
+        <div class="steps">
+          <div class="step"><div class="n">1</div><b>Watch-List</b><p>Aktie nähert sich ihrem 20-Tage-Hoch (≤ 4 % Abstand). Noch kein Kauf!</p></div>
+          <div class="step"><div class="n">2</div><b>Ausbruch</b><p>Kurs steigt über den Trigger. Erst der <b>Tagesschluss</b> zählt — rund die Hälfte der Ausbrüche fällt zurück.</p></div>
+          <div class="step"><div class="n">3</div><b>Bestätigt</b><p>Schluss über dem Trigger → Kaufsignal im Stock-Scan, mit Score und Risiko-Ampel.</p></div>
+          <div class="step"><div class="n">4</div><b>Kauf</b><p>Am nächsten Morgen kaufen die Depots zum Eröffnungskurs — die stärksten Scores zuerst, solange Slots frei sind.</p></div>
+          <div class="step"><div class="n">5</div><b>Stop &amp; Trail</b><p>Stop = Einstand − 2× Tagesschwankung. Läuft die Aktie, wird der Stop täglich nachgezogen — nie runter.</p></div>
+        </div>
+      </div></div>
+
+    <div class="grid2">
+    <div class="win"><div class="win-bar"><span class="win-title">Der Score (0–100)</span></div>
+      <div class="win-body prose">
+        <p><b>0–70 Punkte — Schubkraft:</b> Wie explosiv war die letzte Woche? Nur die stärksten Ausbrüche bekommen viele Punkte — in unseren Tests kam der Großteil des Gewinns aus dem obersten Fünftel.</p>
+        <p><b>+30 Punkte — Katalysator:</b> Gab es kürzlich einen Kurssprung auf sehr hohem Volumen (meist Quartalszahlen)? Signale mit Katalysator liefen im Test <b>10× besser</b> als ohne.</p>
+        <p class="note">Score = Signal-Qualität für die Reihenfolge. KEINE Gewinnwahrscheinlichkeit.</p>
+      </div></div>
+    <div class="win"><div class="win-bar"><span class="win-title">Die Risiko-Ampel</span></div>
+      <div class="win-body prose">
+        <p>Jedes Signal bekommt eine Ampel aus <b>Schwankungsbreite</b> (wie wild zappelt die Aktie?) und <b>Überdehnung</b> (wie weit über ihrer 200-Tage-Linie?):</p>
+        <ul>
+          <li><span class="badge b-nied">Niedrig</span> — ruhiger Trend, moderat gedehnt</li>
+          <li><span class="badge b-mitt">Mittel</span> — normal für einen frischen Ausbruch</li>
+          <li><span class="badge b-hoch">Hoch</span> — heiß gelaufen; kann groß gewinnen, schwankt aber brutal</li>
+        </ul>
+        <p class="note">Shield nutzt die Ampel fürs Positionsgrößen-Management: ruhige Titel bekommen automatisch mehr Kapital.</p>
+      </div></div>
+    </div>
+
+    <div class="win"><div class="win-bar"><span class="win-title">Zwei Depots, eine Strategie</span></div>
+      <div class="win-body">
+        <div class="tbl-scroll"><table class="cmp"><tbody>
+          <tr><td></td><td class="hd" style="color:var(--strike)">STRIKE</td><td class="hd" style="color:var(--shield)">SHIELD</td></tr>
+          <tr><td>Charakter</td><td>aggressiv, konzentriert</td><td>defensiv, breit gestreut</td></tr>
+          <tr><td>Positionen</td><td><b>4</b> à ~25 % des Depots</td><td>bis <b>10</b>, je 4–15 % (risiko-gewichtet: ruhige Titel größer)</td></tr>
+          <tr><td>Signal-Auswahl</td><td>Top-Scores zuerst</td><td>dieselben Signale, mehr davon</td></tr>
+          <tr><td>Gewinner-Trail</td><td>eng (10-T-Tief), ab +2R locker (20-T-Tief)</td><td>durchgehend 20-Tage-Tief</td></tr>
+          <tr><td>Markt-Bremse</td><td>S&amp;P unter 200-T-Linie → halbe Käufe</td><td>Marktbreite &lt; 40 % → Kaufstopp</td></tr>
+          <tr><td>10-J-Backtest*</td><td>~26 % p. a. · Einbruch bis −31 %</td><td>~15 % p. a. · Einbruch bis −20 %</td></tr>
+        </tbody></table></div>
+        <div class="note" style="margin-top:10px">*Simulation mit echten Kursen inkl. Handelskosten — aber rückblickend und mit Überlebenden-Verzerrung: <b>real ist eher die Hälfte realistisch, inklusive Verlustjahren.</b></div>
+      </div></div>
+
+    <div class="win"><div class="win-bar"><span class="win-title">Warum Gewinner nicht verkauft werden</span></div>
+      <div class="win-body prose">
+        <p>Die Trefferquote liegt nur bei <b>~40 %</b> — die meisten Trades enden mit kleinem Verlust am Stop. Das ist okay:
+        In 10 Jahren Testdaten kam <b>fast der gesamte Gewinn aus wenigen Monster-Trades</b>, die sich verdoppelten oder mehr.</p>
+        <p>Deshalb gibt es <b>keine Kursziele und kein Gewinnmitnehmen</b>: Wir haben „nach 4 Tagen mit Profit verkaufen" hart getestet — die Trefferquote steigt auf 64 %, <b>aber das Depot landet nach 10 Jahren im Minus</b>, weil genau die Monster-Trades abgeschnitten werden. Der nachgezogene Stop beendet jeden Lauf automatisch, wenn er wirklich vorbei ist.</p>
+      </div></div>
+
+    <div class="win"><div class="win-bar"><span class="win-title">Tagesrhythmus &amp; Ehrlichkeit</span></div>
+      <div class="win-body prose">
+        <ul>
+          <li><b>22:15 Uhr (Berlin), Mo–Fr:</b> US-Börse hat geschlossen → Scan über ~870 Titel, neue Kaufsignale, Stops nachgezogen, Dashboard aktualisiert. <i>Was hier abends steht, wird morgen früh gekauft.</i></li>
+          <li><b>15:40 Uhr, Mo–Fr:</b> kurz nach US-Eröffnung → Käufe zum Eröffnungskurs gebucht, Gap-Stops verbucht, Dashboard aktualisiert.</li>
+        </ul>
+        <div class="warn"><b>Das ist ein Experiment, keine Anlageberatung.</b> Beide Depots sind Simulationen mit echten Marktkursen und echten Regeln. Verlustphasen von 5–7 Trades in Serie sind gemessen und normal, Verlustmonate ebenso. Niemand verspricht hier Rendite — die Regeln sorgen nur dafür, dass kein einzelner Fehler das Depot zerstört.</div>
+      </div></div>
+  </section>
+  </main>
+
+  <footer>Strike &amp; Shield · automatisch generiert 22.07.2026 19:49 · Kurse: Yahoo Finance / TradingView · Simulation, keine Anlageberatung<br>Kosten 0,15 % pro Handelsseite eingerechnet · Alle Beträge in US-Dollar (€ ≈ Kurs 1.14)</footer>
+</div>
+<script>window.DATA = {"stamp": "22.07.2026 19:49", "eurusd": 1.1419, "regime": true, "portfolios": {"strike": {"label": "STRIKE", "dates": ["2026-07-22"], "curve": [1140.19], "contrib": [1141.9], "bench": {"SPY": [1146.63], "QQQ": [1149.39]}, "holdings": [{"sym": "SM", "entry": 32.99, "cur": 33.06, "pnl": 0.23, "value": 228.69, "stop": 30.47, "w": 20.057472109665763}, {"sym": "HAS", "entry": 88.91, "cur": 88.92, "pnl": 0.01, "value": 228.34, "stop": 83.23, "w": 20.026241926855125}, {"sym": "MMM", "entry": 172.05, "cur": 171.93, "pnl": -0.07, "value": 228.21, "stop": 162.26, "w": 20.01544754457664}, {"sym": "XMTR", "entry": 103.21, "cur": 103.24, "pnl": 0.03, "value": 227.15, "stop": 92.91, "w": 19.92183554177463}, {"sym": "BCO", "entry": 124.27, "cur": 122.12, "pnl": -1.73, "value": 224.3, "stop": 117.24, "w": 19.67245785743842}], "events": [{"date": "2026-07-22", "act": "BUY", "sym": "XMTR", "price": 103.21, "value": 227.08, "pnl": 0.0, "score": 44, "w": 20.0}, {"date": "2026-07-22", "act": "BUY", "sym": "SM", "price": 32.99, "value": 228.17, "pnl": 0.0, "score": 47, "w": 20.0}, {"date": "2026-07-22", "act": "BUY", "sym": "BCO", "price": 124.27, "value": 228.24, "pnl": 0.0, "score": 62, "w": 20.0}, {"date": "2026-07-22", "act": "BUY", "sym": "HAS", "price": 88.91, "value": 228.31, "pnl": 0.0, "score": 78, "w": 20.0}, {"date": "2026-07-22", "act": "BUY", "sym": "MMM", "price": 172.05, "value": 228.38, "pnl": 0.0, "score": 80, "w": 20.0}], "kpi": {"value": 1140.19, "contributed": 1141.9, "profit": -1.71, "profit_pct": -0.15, "cash": 3.5, "invested": 1136.69, "trades": 0, "winrate": 0, "maxdd": 0.0, "slots": 4}}, "shield": {"label": "SHIELD", "dates": ["2026-07-22"], "curve": [1140.19], "contrib": [1141.9], "bench": {"SPY": [1146.63], "QQQ": [1149.39]}, "holdings": [{"sym": "OVV", "entry": 60.01, "cur": 60.35, "pnl": 0.57, "value": 114.7, "stop": 56.83, "w": 10.0596624892944}, {"sym": "SM", "entry": 32.99, "cur": 33.06, "pnl": 0.23, "value": 114.4, "stop": 30.47, "w": 10.033251017723117}, {"sym": "MUR", "entry": 37.91, "cur": 37.99, "pnl": 0.21, "value": 114.33, "stop": 35.28, "w": 10.027105614419211}, {"sym": "JAZZ", "entry": 253.74, "cur": 253.93, "pnl": 0.07, "value": 114.19, "stop": 238.85, "w": 10.014984086427786}, {"sym": "HAS", "entry": 88.91, "cur": 88.92, "pnl": 0.01, "value": 114.19, "stop": 83.23, "w": 10.01462338229774}, {"sym": "XMTR", "entry": 103.21, "cur": 103.24, "pnl": 0.03, "value": 114.15, "stop": 92.91, "w": 10.011901542425719}, {"sym": "MMM", "entry": 172.05, "cur": 171.93, "pnl": -0.07, "value": 114.11, "stop": 162.26, "w": 10.00772377228832}, {"sym": "FANG", "entry": 202.42, "cur": 202.41, "pnl": -0.0, "value": 113.09, "stop": 191.4, "w": 9.918816824728761}, {"sym": "CORT", "entry": 95.18, "cur": 93.73, "pnl": -1.52, "value": 112.33, "stop": 87.43, "w": 9.852077986530604}, {"sym": "BCO", "entry": 124.27, "cur": 122.12, "pnl": -1.73, "value": 112.19, "stop": 117.24, "w": 9.839180904372087}], "events": [{"date": "2026-07-22", "act": "BUY", "sym": "FANG", "price": 202.42, "value": 113.1, "pnl": 0.0, "score": 20, "w": 10.0}, {"date": "2026-07-22", "act": "BUY", "sym": "OVV", "price": 60.01, "value": 114.05, "pnl": 0.0, "score": 26, "w": 10.0}, {"date": "2026-07-22", "act": "BUY", "sym": "CORT", "price": 95.18, "value": 114.07, "pnl": 0.0, "score": 29, "w": 10.0}, {"date": "2026-07-22", "act": "BUY", "sym": "MUR", "price": 37.91, "value": 114.09, "pnl": 0.0, "score": 35, "w": 10.0}, {"date": "2026-07-22", "act": "BUY", "sym": "JAZZ", "price": 253.74, "value": 114.1, "pnl": 0.0, "score": 36, "w": 10.0}, {"date": "2026-07-22", "act": "BUY", "sym": "XMTR", "price": 103.21, "value": 114.12, "pnl": 0.0, "score": 44, "w": 10.0}, {"date": "2026-07-22", "act": "BUY", "sym": "SM", "price": 32.99, "value": 114.14, "pnl": 0.0, "score": 47, "w": 10.0}, {"date": "2026-07-22", "act": "BUY", "sym": "BCO", "price": 124.27, "value": 114.16, "pnl": 0.0, "score": 62, "w": 10.0}, {"date": "2026-07-22", "act": "BUY", "sym": "HAS", "price": 88.91, "value": 114.17, "pnl": 0.0, "score": 78, "w": 10.0}, {"date": "2026-07-22", "act": "BUY", "sym": "MMM", "price": 172.05, "value": 114.19, "pnl": 0.0, "score": 80, "w": 10.0}], "kpi": {"value": 1140.19, "contributed": 1141.9, "profit": -1.71, "profit_pct": -0.15, "cash": 2.52, "invested": 1137.67, "trades": 0, "winrate": 0, "maxdd": 0.0, "slots": 10}}}, "sim": {"strike": {"label": "STRIKE", "dates": ["2026-01-02", "2026-01-05", "2026-01-06", "2026-01-07", "2026-01-08", "2026-01-09", "2026-01-12", "2026-01-13", "2026-01-14", "2026-01-15", "2026-01-16", "2026-01-20", "2026-01-21", "2026-01-22", "2026-01-23", "2026-01-26", "2026-01-27", "2026-01-28", "2026-01-29", "2026-01-30", "2026-02-02", "2026-02-03", "2026-02-04", "2026-02-05", "2026-02-06", "2026-02-09", "2026-02-10", "2026-02-11", "2026-02-12", "2026-02-13", "2026-02-17", "2026-02-18", "2026-02-19", "2026-02-20", "2026-02-23", "2026-02-24", "2026-02-25", "2026-02-26", "2026-02-27", "2026-03-02", "2026-03-03", "2026-03-04", "2026-03-05", "2026-03-06", "2026-03-09", "2026-03-10", "2026-03-11", "2026-03-12", "2026-03-13", "2026-03-16", "2026-03-17", "2026-03-18", "2026-03-19", "2026-03-20", "2026-03-23", "2026-03-24", "2026-03-25", "2026-03-26", "2026-03-27", "2026-03-30", "2026-03-31", "2026-04-01", "2026-04-02", "2026-04-06", "2026-04-07", "2026-04-08", "2026-04-09", "2026-04-10", "2026-04-13", "2026-04-14", "2026-04-15", "2026-04-16", "2026-04-17", "2026-04-20", "2026-04-21", "2026-04-22", "2026-04-23", "2026-04-24", "2026-04-27", "2026-04-28", "2026-04-29", "2026-04-30", "2026-05-01", "2026-05-04", "2026-05-05", "2026-05-06", "2026-05-07", "2026-05-08", "2026-05-11", "2026-05-12", "2026-05-13", "2026-05-14", "2026-05-15", "2026-05-18", "2026-05-19", "2026-05-20", "2026-05-21", "2026-05-22", "2026-05-26", "2026-05-27", "2026-05-28", "2026-05-29", "2026-06-01", "2026-06-02", "2026-06-03", "2026-06-04", "2026-06-05", "2026-06-08", "2026-06-09", "2026-06-10", "2026-06-11", "2026-06-12", "2026-06-15", "2026-06-16", "2026-06-17", "2026-06-18", "2026-06-22", "2026-06-23", "2026-06-24", "2026-06-25", "2026-06-26", "2026-06-29", "2026-06-30"], "curve": [1141.47, 1119.42, 1224.32, 1252.84, 1231.67, 1314.85, 1321.94, 1323.95, 1296.34, 1350.33, 1365.59, 1404.05, 1499.25, 1493.37, 1435.82, 1428.39, 1431.26, 1456.15, 1448.12, 1469.82, 2127.62, 2157.04, 2019.75, 2051.4, 2077.02, 2054.52, 2008.9, 2070.99, 2133.55, 2122.13, 2103.19, 2100.66, 2121.12, 2137.55, 2134.28, 2130.51, 2102.51, 2148.53, 2157.41, 2705.12, 2618.92, 2662.24, 2595.06, 2557.88, 2571.08, 2558.84, 2594.92, 2596.07, 2594.32, 2597.15, 2617.0, 2595.71, 2619.6, 2633.71, 2660.82, 2713.8, 2772.72, 2834.3, 2829.04, 2772.16, 2827.94, 3385.86, 3405.0, 3429.59, 3423.41, 3387.35, 3398.31, 3456.52, 3481.56, 3486.48, 3484.69, 3424.75, 3483.4, 3529.53, 3507.52, 3548.36, 3551.05, 3535.42, 3492.85, 3453.01, 3432.77, 3535.01, 4098.38, 4061.56, 4119.27, 4156.33, 3967.96, 4051.44, 4220.73, 4104.31, 4224.94, 4238.05, 4086.66, 4003.26, 4131.49, 4157.38, 4177.82, 4225.38, 4168.38, 4059.53, 4113.47, 4118.42, 4776.58, 5274.9, 5240.99, 5317.81, 4858.37, 4975.2, 4882.21, 4706.14, 5081.48, 5116.59, 5282.68, 5061.44, 5164.56, 5328.67, 5795.36, 5576.04, 5551.82, 5613.72, 5466.6, 5570.02, 5737.62], "contrib": [1141.9, 1141.9, 1141.9, 1141.9, 1141.9, 1141.9, 1141.9, 1141.9, 1141.9, 1141.9, 1141.9, 1141.9, 1141.9, 1141.9, 1141.9, 1141.9, 1141.9, 1141.9, 1141.9, 1141.9, 1712.85, 1712.85, 1712.85, 1712.85, 1712.85, 1712.85, 1712.85, 1712.85, 1712.85, 1712.85, 1712.85, 1712.85, 1712.85, 1712.85, 1712.85, 1712.85, 1712.85, 1712.85, 1712.85, 2283.8, 2283.8, 2283.8, 2283.8, 2283.8, 2283.8, 2283.8, 2283.8, 2283.8, 2283.8, 2283.8, 2283.8, 2283.8, 2283.8, 2283.8, 2283.8, 2283.8, 2283.8, 2283.8, 2283.8, 2283.8, 2283.8, 2854.75, 2854.75, 2854.75, 2854.75, 2854.75, 2854.75, 2854.75, 2854.75, 2854.75, 2854.75, 2854.75, 2854.75, 2854.75, 2854.75, 2854.75, 2854.75, 2854.75, 2854.75, 2854.75, 2854.75, 2854.75, 3425.7, 3425.7, 3425.7, 3425.7, 3425.7, 3425.7, 3425.7, 3425.7, 3425.7, 3425.7, 3425.7, 3425.7, 3425.7, 3425.7, 3425.7, 3425.7, 3425.7, 3425.7, 3425.7, 3425.7, 3996.65, 3996.65, 3996.65, 3996.65, 3996.65, 3996.65, 3996.65, 3996.65, 3996.65, 3996.65, 3996.65, 3996.65, 3996.65, 3996.65, 3996.65, 3996.65, 3996.65, 3996.65, 3996.65, 3996.65, 3996.65], "bench": {"SPY": [1137.67, 1145.25, 1152.06, 1148.34, 1148.23, 1155.82, 1157.64, 1155.32, 1149.64, 1152.77, 1151.81, 1128.36, 1141.38, 1147.35, 1147.76, 1153.59, 1158.19, 1158.07, 1155.77, 1152.32, 1733.83, 1719.17, 1710.84, 1689.48, 1721.89, 1730.19, 1725.63, 1725.23, 1698.58, 1699.77, 1702.51, 1711.09, 1706.58, 1718.92, 1701.37, 1713.73, 1728.2, 1718.6, 1710.34, 2288.73, 2268.55, 2284.56, 2271.82, 2242.04, 2261.68, 2258.05, 2255.22, 2220.97, 2208.4, 2230.87, 2236.74, 2205.53, 2200.1, 2162.65, 2185.36, 2178.02, 2190.16, 2151.05, 2114.37, 2107.3, 2168.55, 2757.01, 2759.49, 2772.54, 2773.76, 2844.4, 2860.81, 2858.92, 2886.86, 2922.03, 2945.09, 2952.33, 2988.01, 2982.04, 2962.51, 2992.51, 2980.9, 3004.0, 3009.17, 2994.53, 2994.07, 3023.86, 3602.71, 3589.51, 3618.31, 3668.6, 3657.35, 3687.54, 3695.94, 3690.34, 3710.99, 3740.29, 3695.29, 3692.69, 3668.1, 3705.69, 3713.04, 3727.64, 3752.38, 3751.74, 3772.43, 3781.83, 4365.48, 4371.41, 4340.74, 4357.14, 4244.68, 4254.29, 4241.81, 4174.93, 4245.89, 4268.85, 4344.13, 4318.23, 4264.31, 4297.57, 4284.05, 4221.83, 4219.88, 4225.98, 4195.42, 4264.54, 4297.74], "QQQ": [1129.12, 1138.09, 1148.09, 1149.19, 1142.66, 1154.04, 1154.99, 1153.28, 1140.96, 1145.07, 1144.11, 1119.8, 1134.94, 1143.19, 1146.8, 1151.84, 1162.29, 1166.14, 1159.16, 1145.23, 1730.91, 1704.32, 1674.55, 1650.44, 1685.33, 1698.24, 1690.36, 1694.89, 1660.42, 1663.96, 1662.24, 1674.66, 1668.24, 1683.01, 1662.55, 1680.41, 1704.76, 1684.19, 1678.8, 2260.76, 2236.56, 2270.65, 2263.81, 2229.76, 2259.54, 2259.58, 2259.28, 2220.5, 2207.34, 2232.1, 2242.99, 2211.73, 2204.74, 2163.99, 2186.07, 2171.13, 2185.4, 2133.24, 2091.57, 2075.58, 2145.85, 2746.08, 2749.23, 2765.78, 2766.2, 2848.44, 2867.71, 2871.85, 2901.55, 2954.23, 2995.59, 3010.02, 3049.4, 3039.72, 3028.16, 3078.82, 3061.48, 3120.04, 3121.68, 3090.29, 3109.18, 3138.18, 3743.51, 3736.46, 3784.94, 3863.57, 3858.96, 3949.42, 3960.85, 3927.26, 3968.74, 3996.95, 3936.64, 3919.71, 3895.55, 3960.08, 3967.63, 3984.45, 4055.2, 4050.59, 4084.74, 4099.79, 4699.75, 4721.39, 4709.06, 4686.28, 4461.33, 4531.0, 4478.86, 4389.39, 4537.64, 4564.34, 4707.73, 4618.26, 4571.75, 4686.34, 4669.45, 4515.69, 4496.51, 4532.96, 4470.57, 4581.68, 4659.64]}, "holdings": [{"sym": "MRVL", "entry": 87.93, "cur": 297.89, "pnl": 238.78, "value": 2179.21, "stop": 195.12, "w": 37.98115686579279}, {"sym": "APGE", "entry": 90.0, "cur": 132.73, "pnl": 47.48, "value": 1791.92, "stop": 81.04, "w": 31.231137736968748}, {"sym": "KLIC", "entry": 127.04, "cur": 133.76, "pnl": 5.29, "value": 903.33, "stop": 112.62, "w": 15.743983191323549}], "events": [{"date": "2026-01-02", "act": "BUY", "sym": "AXSM", "price": 183.33, "value": 285.47, "pnl": 0.0, "score": 97, "w": 25.0}, {"date": "2026-01-05", "act": "SELL", "sym": "AXSM", "price": 170.23, "value": 265.08, "pnl": -7.14, "score": null, "w": null}, {"date": "2026-01-05", "act": "BUY", "sym": "FTAI", "price": 212.68, "value": 280.17, "pnl": 0.0, "score": 68, "w": 25.0}, {"date": "2026-01-05", "act": "BUY", "sym": "ACMR", "price": 45.99, "value": 280.07, "pnl": 0.0, "score": 60, "w": 25.0}, {"date": "2026-01-05", "act": "BUY", "sym": "SNDK", "price": 284.22, "value": 279.96, "pnl": 0.0, "score": 54, "w": 25.0}, {"date": "2026-01-06", "act": "BUY", "sym": "AMKR", "price": 49.37, "value": 278.81, "pnl": 0.0, "score": 97, "w": 25.0}, {"date": "2026-01-26", "act": "SELL", "sym": "ACMR", "price": 49.25, "value": 299.92, "pnl": 7.09, "score": null, "w": null}, {"date": "2026-01-27", "act": "BUY", "sym": "DOCN", "price": 63.09, "value": 299.02, "pnl": 0.0, "score": 75, "w": 25.0}, {"date": "2026-01-29", "act": "SELL", "sym": "DOCN", "price": 57.25, "value": 271.35, "pnl": -9.25, "score": null, "w": null}, {"date": "2026-01-30", "act": "BUY", "sym": "RCL", "price": 337.54, "value": 270.54, "pnl": 0.0, "score": 98, "w": 25.0}, {"date": "2026-02-02", "act": "FUND", "sym": "", "price": 0.0, "value": 570.95, "pnl": 0.0, "score": null, "w": null}, {"date": "2026-02-03", "act": "SELL", "sym": "AMKR", "price": 46.48, "value": 262.49, "pnl": -5.85, "score": null, "w": null}, {"date": "2026-02-04", "act": "BUY", "sym": "DVA", "price": 136.06, "value": 505.13, "pnl": 0.0, "score": 100, "w": 25.0}, {"date": "2026-02-18", "act": "SELL", "sym": "RCL", "price": 319.0, "value": 255.68, "pnl": -5.49, "score": null, "w": null}, {"date": "2026-02-19", "act": "BUY", "sym": "MSGS", "price": 341.76, "value": 530.48, "pnl": 0.0, "score": 98, "w": 25.0}, {"date": "2026-02-23", "act": "SELL", "sym": "MSGS", "price": 316.51, "value": 491.29, "pnl": -7.39, "score": null, "w": null}, {"date": "2026-02-24", "act": "BUY", "sym": "OXY", "price": 52.34, "value": 532.83, "pnl": 0.0, "score": 94, "w": 25.0}, {"date": "2026-03-02", "act": "FUND", "sym": "", "price": 0.0, "value": 570.95, "pnl": 0.0, "score": null, "w": null}, {"date": "2026-03-06", "act": "SELL", "sym": "FTAI", "price": 255.61, "value": 336.72, "pnl": 20.19, "score": null, "w": null}, {"date": "2026-03-06", "act": "SELL", "sym": "SNDK", "price": 540.14, "value": 532.04, "pnl": 90.04, "score": null, "w": null}, {"date": "2026-03-09", "act": "BUY", "sym": "MRVL", "price": 87.93, "value": 643.25, "pnl": 0.0, "score": 82, "w": 25.0}, {"date": "2026-03-09", "act": "BUY", "sym": "MTDR", "price": 57.0, "value": 643.01, "pnl": 0.0, "score": 67, "w": 25.0}, {"date": "2026-04-01", "act": "FUND", "sym": "", "price": 0.0, "value": 570.95, "pnl": 0.0, "score": null, "w": null}, {"date": "2026-04-02", "act": "SELL", "sym": "DVA", "price": 146.09, "value": 542.36, "pnl": 7.37, "score": null, "w": null}, {"date": "2026-04-06", "act": "BUY", "sym": "GSAT", "price": 76.56, "value": 428.78, "pnl": 0.0, "score": 100, "w": 25.0}, {"date": "2026-04-14", "act": "SELL", "sym": "OXY", "price": 56.25, "value": 572.63, "pnl": 7.47, "score": null, "w": null}, {"date": "2026-04-15", "act": "SELL", "sym": "MTDR", "price": 56.51, "value": 637.48, "pnl": -0.86, "score": null, "w": null}, {"date": "2026-04-15", "act": "BUY", "sym": "AIR", "price": 125.15, "value": 871.5, "pnl": 0.0, "score": 86, "w": 25.0}, {"date": "2026-04-16", "act": "BUY", "sym": "AUR", "price": 5.39, "value": 856.51, "pnl": 0.0, "score": 70, "w": 25.0}, {"date": "2026-04-22", "act": "SELL", "sym": "AIR", "price": 115.24, "value": 802.49, "pnl": -7.92, "score": null, "w": null}, {"date": "2026-04-23", "act": "SELL", "sym": "AUR", "price": 4.82, "value": 766.72, "pnl": -10.48, "score": null, "w": null}, {"date": "2026-04-23", "act": "BUY", "sym": "MAS", "price": 74.86, "value": 888.1, "pnl": 0.0, "score": 96, "w": 25.0}, {"date": "2026-04-24", "act": "BUY", "sym": "VMI", "price": 497.52, "value": 884.19, "pnl": 0.0, "score": 99, "w": 25.0}, {"date": "2026-05-01", "act": "FUND", "sym": "", "price": 0.0, "value": 570.95, "pnl": 0.0, "score": null, "w": null}, {"date": "2026-05-04", "act": "SELL", "sym": "MAS", "price": 69.64, "value": 826.18, "pnl": -6.97, "score": null, "w": null}, {"date": "2026-05-05", "act": "BUY", "sym": "CRCL", "price": 121.4, "value": 1030.2, "pnl": 0.0, "score": 70, "w": 25.0}, {"date": "2026-05-15", "act": "SELL", "sym": "VMI", "price": 502.06, "value": 892.26, "pnl": 0.91, "score": null, "w": null}, {"date": "2026-05-18", "act": "BUY", "sym": "VG", "price": 13.67, "value": 1001.19, "pnl": 0.0, "score": 70, "w": 25.0}, {"date": "2026-05-19", "act": "SELL", "sym": "GSAT", "price": 81.17, "value": 454.6, "pnl": 6.02, "score": null, "w": null}, {"date": "2026-05-20", "act": "BUY", "sym": "JAZZ", "price": 239.77, "value": 816.07, "pnl": 0.0, "score": 44, "w": 25.0}, {"date": "2026-05-26", "act": "SELL", "sym": "CRCL", "price": 105.36, "value": 894.09, "pnl": -13.21, "score": null, "w": null}, {"date": "2026-05-27", "act": "BUY", "sym": "BIRK", "price": 43.87, "value": 891.41, "pnl": 0.0, "score": 100, "w": 25.0}, {"date": "2026-05-29", "act": "SELL", "sym": "VG", "price": 12.28, "value": 899.39, "pnl": -10.17, "score": null, "w": null}, {"date": "2026-06-01", "act": "FUND", "sym": "", "price": 0.0, "value": 570.95, "pnl": 0.0, "score": null, "w": null}, {"date": "2026-06-01", "act": "BUY", "sym": "IBM", "price": 322.55, "value": 1194.59, "pnl": 0.0, "score": 81, "w": 25.0}, {"date": "2026-06-02", "act": "SELL", "sym": "JAZZ", "price": 227.64, "value": 774.79, "pnl": -5.06, "score": null, "w": null}, {"date": "2026-06-03", "act": "BUY", "sym": "FCX", "price": 71.65, "value": 1044.66, "pnl": 0.0, "score": 59, "w": 25.0}, {"date": "2026-06-04", "act": "SELL", "sym": "IBM", "price": 301.07, "value": 1115.03, "pnl": -6.66, "score": null, "w": null}, {"date": "2026-06-05", "act": "SELL", "sym": "FCX", "price": 65.88, "value": 960.54, "pnl": -8.05, "score": null, "w": null}, {"date": "2026-06-05", "act": "BUY", "sym": "APGE", "price": 90.0, "value": 1215.05, "pnl": 0.0, "score": 66, "w": 25.0}, {"date": "2026-06-08", "act": "BUY", "sym": "H", "price": 191.93, "value": 854.3, "pnl": 0.0, "score": 34, "w": 25.0}, {"date": "2026-06-23", "act": "SELL", "sym": "BIRK", "price": 42.35, "value": 860.53, "pnl": -3.46, "score": null, "w": null}, {"date": "2026-06-24", "act": "BUY", "sym": "KLIC", "price": 127.04, "value": 857.95, "pnl": 0.0, "score": 69, "w": 25.0}, {"date": "2026-06-30", "act": "SELL", "sym": "H", "price": 194.21, "value": 864.45, "pnl": 1.19, "score": null, "w": null}], "kpi": {"value": 5737.62, "contributed": 3996.65, "profit": 1740.97, "profit_pct": 43.56, "cash": 863.15, "invested": 4874.47, "trades": 23, "winrate": 35.0, "maxdd": -11.5, "slots": 4}}, "shield": {"label": "SHIELD", "dates": ["2026-01-02", "2026-01-05", "2026-01-06", "2026-01-07", "2026-01-08", "2026-01-09", "2026-01-12", "2026-01-13", "2026-01-14", "2026-01-15", "2026-01-16", "2026-01-20", "2026-01-21", "2026-01-22", "2026-01-23", "2026-01-26", "2026-01-27", "2026-01-28", "2026-01-29", "2026-01-30", "2026-02-02", "2026-02-03", "2026-02-04", "2026-02-05", "2026-02-06", "2026-02-09", "2026-02-10", "2026-02-11", "2026-02-12", "2026-02-13", "2026-02-17", "2026-02-18", "2026-02-19", "2026-02-20", "2026-02-23", "2026-02-24", "2026-02-25", "2026-02-26", "2026-02-27", "2026-03-02", "2026-03-03", "2026-03-04", "2026-03-05", "2026-03-06", "2026-03-09", "2026-03-10", "2026-03-11", "2026-03-12", "2026-03-13", "2026-03-16", "2026-03-17", "2026-03-18", "2026-03-19", "2026-03-20", "2026-03-23", "2026-03-24", "2026-03-25", "2026-03-26", "2026-03-27", "2026-03-30", "2026-03-31", "2026-04-01", "2026-04-02", "2026-04-06", "2026-04-07", "2026-04-08", "2026-04-09", "2026-04-10", "2026-04-13", "2026-04-14", "2026-04-15", "2026-04-16", "2026-04-17", "2026-04-20", "2026-04-21", "2026-04-22", "2026-04-23", "2026-04-24", "2026-04-27", "2026-04-28", "2026-04-29", "2026-04-30", "2026-05-01", "2026-05-04", "2026-05-05", "2026-05-06", "2026-05-07", "2026-05-08", "2026-05-11", "2026-05-12", "2026-05-13", "2026-05-14", "2026-05-15", "2026-05-18", "2026-05-19", "2026-05-20", "2026-05-21", "2026-05-22", "2026-05-26", "2026-05-27", "2026-05-28", "2026-05-29", "2026-06-01", "2026-06-02", "2026-06-03", "2026-06-04", "2026-06-05", "2026-06-08", "2026-06-09", "2026-06-10", "2026-06-11", "2026-06-12", "2026-06-15", "2026-06-16", "2026-06-17", "2026-06-18", "2026-06-22", "2026-06-23", "2026-06-24", "2026-06-25", "2026-06-26", "2026-06-29", "2026-06-30"], "curve": [1141.69, 1130.33, 1153.28, 1154.7, 1152.65, 1195.32, 1188.06, 1198.42, 1206.46, 1220.52, 1230.0, 1241.82, 1291.08, 1294.89, 1247.04, 1233.56, 1252.52, 1278.95, 1261.07, 1240.89, 1847.41, 1854.83, 1789.27, 1797.26, 1843.06, 1834.02, 1826.52, 1862.7, 1851.5, 1837.07, 1838.29, 1846.14, 1837.94, 1837.61, 1817.25, 1834.47, 1822.31, 1829.95, 1828.76, 2388.61, 2340.99, 2363.06, 2334.4, 2314.01, 2298.11, 2264.08, 2294.72, 2299.26, 2299.87, 2310.99, 2325.24, 2309.92, 2336.14, 2327.12, 2349.53, 2395.85, 2412.86, 2426.77, 2425.1, 2393.07, 2402.08, 2952.0, 2970.73, 2978.97, 2992.19, 2956.01, 2942.62, 2980.93, 3024.32, 3029.22, 2994.09, 2995.63, 3076.11, 3110.45, 3115.79, 3152.74, 3157.58, 3176.52, 3160.33, 3081.46, 3087.41, 3207.52, 3812.93, 3810.45, 3887.27, 4070.9, 3955.14, 4031.69, 4102.32, 4044.75, 4117.94, 4125.4, 4028.72, 3930.98, 3909.27, 4002.96, 4103.97, 4208.49, 4316.78, 4316.96, 4389.35, 4508.46, 5228.9, 5325.87, 5385.66, 5398.33, 5084.55, 5211.62, 5117.87, 4984.12, 5221.32, 5316.27, 5489.62, 5442.84, 5506.68, 5587.13, 5581.33, 5453.1, 5432.19, 5455.93, 5319.79, 5384.42, 5432.89], "contrib": [1141.9, 1141.9, 1141.9, 1141.9, 1141.9, 1141.9, 1141.9, 1141.9, 1141.9, 1141.9, 1141.9, 1141.9, 1141.9, 1141.9, 1141.9, 1141.9, 1141.9, 1141.9, 1141.9, 1141.9, 1712.85, 1712.85, 1712.85, 1712.85, 1712.85, 1712.85, 1712.85, 1712.85, 1712.85, 1712.85, 1712.85, 1712.85, 1712.85, 1712.85, 1712.85, 1712.85, 1712.85, 1712.85, 1712.85, 2283.8, 2283.8, 2283.8, 2283.8, 2283.8, 2283.8, 2283.8, 2283.8, 2283.8, 2283.8, 2283.8, 2283.8, 2283.8, 2283.8, 2283.8, 2283.8, 2283.8, 2283.8, 2283.8, 2283.8, 2283.8, 2283.8, 2854.75, 2854.75, 2854.75, 2854.75, 2854.75, 2854.75, 2854.75, 2854.75, 2854.75, 2854.75, 2854.75, 2854.75, 2854.75, 2854.75, 2854.75, 2854.75, 2854.75, 2854.75, 2854.75, 2854.75, 2854.75, 3425.7, 3425.7, 3425.7, 3425.7, 3425.7, 3425.7, 3425.7, 3425.7, 3425.7, 3425.7, 3425.7, 3425.7, 3425.7, 3425.7, 3425.7, 3425.7, 3425.7, 3425.7, 3425.7, 3425.7, 3996.65, 3996.65, 3996.65, 3996.65, 3996.65, 3996.65, 3996.65, 3996.65, 3996.65, 3996.65, 3996.65, 3996.65, 3996.65, 3996.65, 3996.65, 3996.65, 3996.65, 3996.65, 3996.65, 3996.65, 3996.65], "bench": {"SPY": [1137.67, 1145.25, 1152.06, 1148.34, 1148.23, 1155.82, 1157.64, 1155.32, 1149.64, 1152.77, 1151.81, 1128.36, 1141.38, 1147.35, 1147.76, 1153.59, 1158.19, 1158.07, 1155.77, 1152.32, 1733.83, 1719.17, 1710.84, 1689.48, 1721.89, 1730.19, 1725.63, 1725.23, 1698.58, 1699.77, 1702.51, 1711.09, 1706.58, 1718.92, 1701.37, 1713.73, 1728.2, 1718.6, 1710.34, 2288.73, 2268.55, 2284.56, 2271.82, 2242.04, 2261.68, 2258.05, 2255.22, 2220.97, 2208.4, 2230.87, 2236.74, 2205.53, 2200.1, 2162.65, 2185.36, 2178.02, 2190.16, 2151.05, 2114.37, 2107.3, 2168.55, 2757.01, 2759.49, 2772.54, 2773.76, 2844.4, 2860.81, 2858.92, 2886.86, 2922.03, 2945.09, 2952.33, 2988.01, 2982.04, 2962.51, 2992.51, 2980.9, 3004.0, 3009.17, 2994.53, 2994.07, 3023.86, 3602.71, 3589.51, 3618.31, 3668.6, 3657.35, 3687.54, 3695.94, 3690.34, 3710.99, 3740.29, 3695.29, 3692.69, 3668.1, 3705.69, 3713.04, 3727.64, 3752.38, 3751.74, 3772.43, 3781.83, 4365.48, 4371.41, 4340.74, 4357.14, 4244.68, 4254.29, 4241.81, 4174.93, 4245.89, 4268.85, 4344.13, 4318.23, 4264.31, 4297.57, 4284.05, 4221.83, 4219.88, 4225.98, 4195.42, 4264.54, 4297.74], "QQQ": [1129.12, 1138.09, 1148.09, 1149.19, 1142.66, 1154.04, 1154.99, 1153.28, 1140.96, 1145.07, 1144.11, 1119.8, 1134.94, 1143.19, 1146.8, 1151.84, 1162.29, 1166.14, 1159.16, 1145.23, 1730.91, 1704.32, 1674.55, 1650.44, 1685.33, 1698.24, 1690.36, 1694.89, 1660.42, 1663.96, 1662.24, 1674.66, 1668.24, 1683.01, 1662.55, 1680.41, 1704.76, 1684.19, 1678.8, 2260.76, 2236.56, 2270.65, 2263.81, 2229.76, 2259.54, 2259.58, 2259.28, 2220.5, 2207.34, 2232.1, 2242.99, 2211.73, 2204.74, 2163.99, 2186.07, 2171.13, 2185.4, 2133.24, 2091.57, 2075.58, 2145.85, 2746.08, 2749.23, 2765.78, 2766.2, 2848.44, 2867.71, 2871.85, 2901.55, 2954.23, 2995.59, 3010.02, 3049.4, 3039.72, 3028.16, 3078.82, 3061.48, 3120.04, 3121.68, 3090.29, 3109.18, 3138.18, 3743.51, 3736.46, 3784.94, 3863.57, 3858.96, 3949.42, 3960.85, 3927.26, 3968.74, 3996.95, 3936.64, 3919.71, 3895.55, 3960.08, 3967.63, 3984.45, 4055.2, 4050.59, 4084.74, 4099.79, 4699.75, 4721.39, 4709.06, 4686.28, 4461.33, 4531.0, 4478.86, 4389.39, 4537.64, 4564.34, 4707.73, 4618.26, 4571.75, 4686.34, 4669.45, 4515.69, 4496.51, 4532.96, 4470.57, 4581.68, 4659.64]}, "holdings": [{"sym": "DELL", "entry": 146.76, "cur": 431.46, "pnl": 193.99, "value": 622.72, "stop": 357.07, "w": 11.462073016741256}, {"sym": "MRVL", "entry": 87.93, "cur": 297.89, "pnl": 238.78, "value": 611.17, "stop": 195.12, "w": 11.24952806853987}, {"sym": "EXEL", "entry": 50.0, "cur": 54.41, "pnl": 8.82, "value": 554.58, "stop": 48.1, "w": 10.207914041377895}, {"sym": "VMI", "entry": 497.52, "cur": 577.6, "pnl": 16.1, "value": 423.52, "stop": 505.06, "w": 7.795478156293332}, {"sym": "STX", "entry": 504.0, "cur": 965.0, "pnl": 91.47, "value": 352.73, "stop": 801.89, "w": 6.492475465460387}, {"sym": "BIRK", "entry": 43.87, "cur": 43.03, "pnl": -1.91, "value": 345.56, "stop": 41.59, "w": 6.360487000686871}, {"sym": "WDC", "entry": 343.88, "cur": 638.72, "pnl": 85.74, "value": 315.88, "stop": 480.87, "w": 5.81423714806458}, {"sym": "HUT", "entry": 61.06, "cur": 115.44, "pnl": 89.07, "value": 307.04, "stop": 104.25, "w": 5.651469045876942}, {"sym": "TTMI", "entry": 120.85, "cur": 187.02, "pnl": 54.75, "value": 276.61, "stop": 162.3, "w": 5.091395160939317}, {"sym": "RIOT", "entry": 16.0, "cur": 27.38, "pnl": 71.12, "value": 263.14, "stop": 23.67, "w": 4.843450485912582}], "events": [{"date": "2026-01-02", "act": "BUY", "sym": "AXSM", "price": 183.33, "value": 138.19, "pnl": 0.0, "score": 97, "w": 12.1}, {"date": "2026-01-05", "act": "SELL", "sym": "AXSM", "price": 170.23, "value": 128.31, "pnl": -7.14, "score": null, "w": null}, {"date": "2026-01-05", "act": "BUY", "sym": "FTAI", "price": 212.68, "value": 114.45, "pnl": 0.0, "score": 68, "w": 10.1}, {"date": "2026-01-05", "act": "BUY", "sym": "ACMR", "price": 45.99, "value": 86.1, "pnl": 0.0, "score": 60, "w": 7.6}, {"date": "2026-01-05", "act": "BUY", "sym": "SNDK", "price": 284.22, "value": 56.26, "pnl": 0.0, "score": 54, "w": 5.0}, {"date": "2026-01-05", "act": "BUY", "sym": "VICR", "price": 123.49, "value": 85.53, "pnl": 0.0, "score": 42, "w": 7.6}, {"date": "2026-01-05", "act": "BUY", "sym": "CELH", "price": 48.37, "value": 99.73, "pnl": 0.0, "score": 36, "w": 8.8}, {"date": "2026-01-05", "act": "BUY", "sym": "DECK", "price": 107.38, "value": 141.95, "pnl": 0.0, "score": 29, "w": 12.6}, {"date": "2026-01-05", "act": "BUY", "sym": "ALAB", "price": 184.98, "value": 54.63, "pnl": 0.0, "score": 28, "w": 4.8}, {"date": "2026-01-05", "act": "BUY", "sym": "JBL", "price": 243.9, "value": 98.69, "pnl": 0.0, "score": 18, "w": 8.7}, {"date": "2026-01-05", "act": "BUY", "sym": "TIGO", "price": 57.0, "value": 127.89, "pnl": 0.0, "score": 18, "w": 11.3}, {"date": "2026-01-06", "act": "SELL", "sym": "ALAB", "price": 161.13, "value": 47.59, "pnl": -12.89, "score": null, "w": null}, {"date": "2026-01-06", "act": "SELL", "sym": "JBL", "price": 221.0, "value": 89.42, "pnl": -9.39, "score": null, "w": null}, {"date": "2026-01-06", "act": "BUY", "sym": "AMKR", "price": 49.37, "value": 118.18, "pnl": 0.0, "score": 97, "w": 10.2}, {"date": "2026-01-07", "act": "SELL", "sym": "DECK", "price": 101.0, "value": 133.52, "pnl": -5.94, "score": null, "w": null}, {"date": "2026-01-07", "act": "SELL", "sym": "TIGO", "price": 54.04, "value": 121.24, "pnl": -5.2, "score": null, "w": null}, {"date": "2026-01-07", "act": "BUY", "sym": "MCHP", "price": 73.06, "value": 144.42, "pnl": 0.0, "score": 95, "w": 12.5}, {"date": "2026-01-07", "act": "BUY", "sym": "BC", "price": 83.89, "value": 165.86, "pnl": 0.0, "score": 72, "w": 14.4}, {"date": "2026-01-08", "act": "BUY", "sym": "MP", "price": 61.58, "value": 82.75, "pnl": 0.0, "score": 69, "w": 7.2}, {"date": "2026-01-08", "act": "BUY", "sym": "INTC", "price": 42.62, "value": 96.47, "pnl": 0.0, "score": 64, "w": 8.4}, {"date": "2026-01-29", "act": "SELL", "sym": "BC", "price": 79.35, "value": 156.89, "pnl": -5.41, "score": null, "w": null}, {"date": "2026-01-30", "act": "BUY", "sym": "RCL", "price": 337.54, "value": 136.36, "pnl": 0.0, "score": 98, "w": 11.0}, {"date": "2026-02-02", "act": "FUND", "sym": "", "price": 0.0, "value": 570.95, "pnl": 0.0, "score": null, "w": null}, {"date": "2026-02-03", "act": "SELL", "sym": "AMKR", "price": 45.45, "value": 108.79, "pnl": -7.94, "score": null, "w": null}, {"date": "2026-02-04", "act": "SELL", "sym": "CELH", "price": 47.88, "value": 98.72, "pnl": -1.01, "score": null, "w": null}, {"date": "2026-02-04", "act": "SELL", "sym": "MP", "price": 57.5, "value": 77.27, "pnl": -6.62, "score": null, "w": null}, {"date": "2026-02-04", "act": "BUY", "sym": "DVA", "price": 136.06, "value": 228.0, "pnl": 0.0, "score": 100, "w": 12.7}, {"date": "2026-02-05", "act": "BUY", "sym": "CSL", "price": 393.73, "value": 245.02, "pnl": 0.0, "score": 95, "w": 13.6}, {"date": "2026-02-05", "act": "BUY", "sym": "MGM", "price": 35.98, "value": 204.73, "pnl": 0.0, "score": 92, "w": 11.4}, {"date": "2026-02-19", "act": "SELL", "sym": "RCL", "price": 310.87, "value": 125.59, "pnl": -7.9, "score": null, "w": null}, {"date": "2026-02-20", "act": "SELL", "sym": "VICR", "price": 128.75, "value": 89.17, "pnl": 4.26, "score": null, "w": null}, {"date": "2026-02-20", "act": "BUY", "sym": "OXY", "price": 51.42, "value": 226.51, "pnl": 0.0, "score": 80, "w": 12.3}, {"date": "2026-02-23", "act": "BUY", "sym": "OMC", "price": 83.83, "value": 207.82, "pnl": 0.0, "score": 99, "w": 11.4}, {"date": "2026-02-27", "act": "SELL", "sym": "MCHP", "price": 73.26, "value": 144.81, "pnl": 0.27, "score": null, "w": null}, {"date": "2026-03-02", "act": "FUND", "sym": "", "price": 0.0, "value": 570.95, "pnl": 0.0, "score": null, "w": null}, {"date": "2026-03-02", "act": "BUY", "sym": "DELL", "price": 146.76, "value": 211.82, "pnl": 0.0, "score": 98, "w": 8.9}, {"date": "2026-03-03", "act": "SELL", "sym": "INTC", "price": 42.88, "value": 97.05, "pnl": 0.61, "score": null, "w": null}, {"date": "2026-03-04", "act": "BUY", "sym": "MPC", "price": 212.1, "value": 236.32, "pnl": 0.0, "score": 48, "w": 10.0}, {"date": "2026-03-05", "act": "SELL", "sym": "ACMR", "price": 50.16, "value": 93.91, "pnl": 9.07, "score": null, "w": null}, {"date": "2026-03-06", "act": "SELL", "sym": "FTAI", "price": 255.61, "value": 137.55, "pnl": 20.19, "score": null, "w": null}, {"date": "2026-03-06", "act": "SELL", "sym": "SNDK", "price": 540.14, "value": 106.91, "pnl": 90.04, "score": null, "w": null}, {"date": "2026-03-06", "act": "SELL", "sym": "CSL", "price": 364.87, "value": 227.06, "pnl": -7.33, "score": null, "w": null}, {"date": "2026-03-06", "act": "BUY", "sym": "EXPE", "price": 243.11, "value": 175.1, "pnl": 0.0, "score": 95, "w": 7.6}, {"date": "2026-03-09", "act": "SELL", "sym": "MGM", "price": 33.53, "value": 190.79, "pnl": -6.81, "score": null, "w": null}, {"date": "2026-03-09", "act": "BUY", "sym": "MRVL", "price": 87.93, "value": 180.4, "pnl": 0.0, "score": 82, "w": 7.8}, {"date": "2026-03-09", "act": "BUY", "sym": "MTDR", "price": 57.0, "value": 244.88, "pnl": 0.0, "score": 67, "w": 10.7}, {"date": "2026-03-09", "act": "BUY", "sym": "KR", "price": 73.59, "value": 268.77, "pnl": 0.0, "score": 48, "w": 11.7}, {"date": "2026-03-10", "act": "BUY", "sym": "KRMN", "price": 106.3, "value": 140.29, "pnl": 0.0, "score": 94, "w": 6.2}, {"date": "2026-03-12", "act": "SELL", "sym": "OMC", "price": 77.44, "value": 191.98, "pnl": -7.62, "score": null, "w": null}, {"date": "2026-03-26", "act": "SELL", "sym": "KRMN", "price": 91.65, "value": 120.95, "pnl": -13.78, "score": null, "w": null}, {"date": "2026-04-01", "act": "FUND", "sym": "", "price": 0.0, "value": 570.95, "pnl": 0.0, "score": null, "w": null}, {"date": "2026-04-02", "act": "SELL", "sym": "DVA", "price": 146.09, "value": 244.81, "pnl": 7.37, "score": null, "w": null}, {"date": "2026-04-02", "act": "SELL", "sym": "EXPE", "price": 220.67, "value": 158.94, "pnl": -9.23, "score": null, "w": null}, {"date": "2026-04-08", "act": "SELL", "sym": "KR", "price": 69.76, "value": 254.78, "pnl": -5.2, "score": null, "w": null}, {"date": "2026-04-09", "act": "BUY", "sym": "HUT", "price": 61.06, "value": 162.4, "pnl": 0.0, "score": 100, "w": 5.5}, {"date": "2026-04-09", "act": "BUY", "sym": "LEVI", "price": 21.69, "value": 307.26, "pnl": 0.0, "score": 96, "w": 10.4}, {"date": "2026-04-09", "act": "BUY", "sym": "RIOT", "price": 16.0, "value": 153.77, "pnl": 0.0, "score": 70, "w": 5.2}, {"date": "2026-04-09", "act": "BUY", "sym": "STX", "price": 504.0, "value": 184.22, "pnl": 0.0, "score": 70, "w": 6.3}, {"date": "2026-04-09", "act": "BUY", "sym": "WDC", "price": 343.88, "value": 170.07, "pnl": 0.0, "score": 70, "w": 5.8}, {"date": "2026-04-10", "act": "SELL", "sym": "MPC", "price": 218.88, "value": 243.88, "pnl": 3.2, "score": null, "w": null}, {"date": "2026-04-13", "act": "BUY", "sym": "TTMI", "price": 120.85, "value": 178.74, "pnl": 0.0, "score": 70, "w": 5.9}, {"date": "2026-04-14", "act": "SELL", "sym": "OXY", "price": 56.25, "value": 247.79, "pnl": 9.39, "score": null, "w": null}, {"date": "2026-04-15", "act": "SELL", "sym": "MTDR", "price": 56.51, "value": 242.78, "pnl": -0.86, "score": null, "w": null}, {"date": "2026-04-15", "act": "BUY", "sym": "AIR", "price": 125.15, "value": 294.66, "pnl": 0.0, "score": 86, "w": 9.8}, {"date": "2026-04-16", "act": "BUY", "sym": "AUR", "price": 5.39, "value": 220.06, "pnl": 0.0, "score": 70, "w": 7.3}, {"date": "2026-04-22", "act": "SELL", "sym": "AIR", "price": 114.64, "value": 269.93, "pnl": -8.39, "score": null, "w": null}, {"date": "2026-04-23", "act": "SELL", "sym": "AUR", "price": 4.82, "value": 196.99, "pnl": -10.48, "score": null, "w": null}, {"date": "2026-04-23", "act": "BUY", "sym": "MAS", "price": 74.86, "value": 390.03, "pnl": 0.0, "score": 96, "w": 12.3}, {"date": "2026-04-24", "act": "BUY", "sym": "VMI", "price": 497.52, "value": 364.8, "pnl": 0.0, "score": 99, "w": 11.5}, {"date": "2026-05-01", "act": "FUND", "sym": "", "price": 0.0, "value": 570.95, "pnl": 0.0, "score": null, "w": null}, {"date": "2026-05-04", "act": "SELL", "sym": "MAS", "price": 69.64, "value": 362.84, "pnl": -6.97, "score": null, "w": null}, {"date": "2026-05-05", "act": "BUY", "sym": "CRCL", "price": 121.4, "value": 212.61, "pnl": 0.0, "score": 70, "w": 5.5}, {"date": "2026-05-11", "act": "SELL", "sym": "LEVI", "price": 21.71, "value": 307.54, "pnl": 0.09, "score": null, "w": null}, {"date": "2026-05-12", "act": "BUY", "sym": "EXEL", "price": 50.0, "value": 509.63, "pnl": 0.0, "score": 91, "w": 12.6}, {"date": "2026-05-26", "act": "SELL", "sym": "CRCL", "price": 104.31, "value": 182.67, "pnl": -14.08, "score": null, "w": null}, {"date": "2026-05-27", "act": "BUY", "sym": "BIRK", "price": 43.87, "value": 352.3, "pnl": 0.0, "score": 100, "w": 8.2}, {"date": "2026-06-01", "act": "FUND", "sym": "", "price": 0.0, "value": 570.95, "pnl": 0.0, "score": null, "w": null}], "kpi": {"value": 5432.89, "contributed": 3996.65, "profit": 1436.24, "profit_pct": 35.94, "cash": 1359.93, "invested": 4072.96, "trades": 31, "winrate": 32.0, "maxdd": -7.7, "slots": 10}}}, "scan": [{"sym": "MMM", "score": 80, "risk": "Niedrig", "price": 170.76, "entry": 170.76, "stop": 160.97, "mom_1w": 9.1, "cat_gap": 6.3}, {"sym": "HAS", "score": 78, "risk": "Niedrig", "price": 88.78, "entry": 88.78, "stop": 83.1, "mom_1w": 13.2, "cat_gap": 3.6}, {"sym": "BCO", "score": 62, "risk": "Niedrig", "price": 123.19, "entry": 123.19, "stop": 116.16, "mom_1w": 12.9, "cat_gap": 0.0}, {"sym": "SM", "score": 47, "risk": "Mittel", "price": 32.22, "entry": 32.22, "stop": 29.7, "mom_1w": 8.4, "cat_gap": 0.0}, {"sym": "XMTR", "score": 44, "risk": "Hoch", "price": 104.85, "entry": 104.85, "stop": 94.55, "mom_1w": 7.9, "cat_gap": 0.0}, {"sym": "JAZZ", "score": 36, "risk": "Mittel", "price": 254.22, "entry": 254.22, "stop": 239.33, "mom_1w": 6.8, "cat_gap": 0.0}, {"sym": "MUR", "score": 35, "risk": "Niedrig", "price": 37.3, "entry": 37.3, "stop": 34.67, "mom_1w": 6.7, "cat_gap": 0.0}, {"sym": "CORT", "score": 29, "risk": "Mittel", "price": 95.65, "entry": 95.65, "stop": 87.9, "mom_1w": 5.7, "cat_gap": 0.0}, {"sym": "OVV", "score": 26, "risk": "Niedrig", "price": 59.37, "entry": 59.37, "stop": 56.19, "mom_1w": 5.4, "cat_gap": 0.0}, {"sym": "FANG", "score": 20, "risk": "Niedrig", "price": 199.8, "entry": 199.8, "stop": 188.78, "mom_1w": 4.8, "cat_gap": 0.0}, {"sym": "NOV", "score": 18, "risk": "Niedrig", "price": 20.19, "entry": 20.19, "stop": 19.0, "mom_1w": 4.6, "cat_gap": 0.0}, {"sym": "LYB", "score": 17, "risk": "Niedrig", "price": 61.19, "entry": 61.19, "stop": 56.94, "mom_1w": 4.5, "cat_gap": 0.0}, {"sym": "APA", "score": 9, "risk": "Niedrig", "price": 35.77, "entry": 35.77, "stop": 33.39, "mom_1w": 3.6, "cat_gap": 0.0}, {"sym": "OXY", "score": 8, "risk": "Niedrig", "price": 56.5, "entry": 56.5, "stop": 53.26, "mom_1w": 3.5, "cat_gap": 0.0}, {"sym": "KEX", "score": 2, "risk": "Niedrig", "price": 148.7, "entry": 148.7, "stop": 141.0, "mom_1w": 2.5, "cat_gap": 0.0}, {"sym": "NE", "score": 1, "risk": "Niedrig", "price": 42.6, "entry": 42.6, "stop": 39.53, "mom_1w": 2.2, "cat_gap": 0.0}], "watch": [{"sym": "NVDA", "score": 0, "dist": 0.07489055309164439, "trigger": 213.81, "cat_gap": 0.0}, {"sym": "SJM", "score": 42, "dist": 0.11071783754026399, "trigger": 117.55, "cat_gap": 0.0}, {"sym": "PCG", "score": 1, "dist": 0.252738419110643, "trigger": 17.85, "cat_gap": 0.0}, {"sym": "CTVA", "score": 14, "dist": 0.2670981723013499, "trigger": 88.21, "cat_gap": 0.0}, {"sym": "ROST", "score": 21, "dist": 0.2933136567333072, "trigger": 237.64, "cat_gap": 0.0}, {"sym": "LEA", "score": 4, "dist": 0.3391510988747015, "trigger": 144.97, "cat_gap": 0.0}, {"sym": "MSM", "score": 3, "dist": 0.4569462141812197, "trigger": 127.51, "cat_gap": 1.6}, {"sym": "BIO", "score": 8, "dist": 0.4655833831382017, "trigger": 307.49, "cat_gap": 0.0}, {"sym": "HWM", "score": 0, "dist": 0.5824982886140972, "trigger": 281.46, "cat_gap": 0.0}, {"sym": "ACA", "score": 0, "dist": 0.9193349332192069, "trigger": 146.0, "cat_gap": 0.2}, {"sym": "SLAB", "score": 0, "dist": 0.985914208806915, "trigger": 219.71, "cat_gap": 0.0}, {"sym": "PEN", "score": 0, "dist": 1.0179783078154037, "trigger": 320.03, "cat_gap": 0.0}, {"sym": "LNG", "score": 7, "dist": 1.106180749013408, "trigger": 267.35, "cat_gap": 0.0}]};</script>
+<script>
+const D = window.DATA;
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const nf0 = new Intl.NumberFormat('de-DE',{maximumFractionDigits:0});
+const nf2 = new Intl.NumberFormat('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2});
+const usd = v => nf0.format(v)+' $';
+const usd2 = v => nf2.format(v)+' $';
+const eur = v => nf0.format(v/D.eurusd)+' €';
+const pct = (v,d=1) => (v>0?'+':'')+v.toLocaleString('de-DE',{minimumFractionDigits:d,maximumFractionDigits:d})+' %';
+const dshort = iso => { const p=iso.split('-'); return p[2]+'.'+p[1]+'.'; };
+const dlong = iso => { const p=iso.split('-'); return p[2]+'.'+p[1]+'.'+p[0]; };
+
+/* ---------- Theme ---------- */
+const root = document.documentElement;
+const savedTheme = localStorage.getItem('ss-theme');
+if (savedTheme) root.dataset.theme = savedTheme;
+else root.dataset.theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+$('#theme').onclick = () => {
+  root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+  localStorage.setItem('ss-theme', root.dataset.theme);
+  renderCharts();
+};
+
+/* ---------- Tabs ---------- */
+function openTab(id){
+  $$('.tab').forEach(t=>t.classList.toggle('on', t.dataset.tab===id));
+  $$('.panel').forEach(p=>p.classList.toggle('on', p.dataset.panel===id));
+  history.replaceState(null,'','#'+id);
+  if(id==='depots'||id==='sim') renderCharts();
+}
+$$('.tab').forEach(t=>t.onclick=()=>openTab(t.dataset.tab));
+
+/* ---------- Chart ---------- */
+const chartState = {};
+function getP(id){ return id.startsWith('sim-') ? D.sim[id.slice(4)] : D.portfolios[id]; }
+function series(pf){
+  const p = getP(pf), col = getComputedStyle(root);
+  const cs = pf.includes('strike') ? col.getPropertyValue('--strike') : col.getPropertyValue('--shield');
+  const s = [
+    {key:'depot', name:'Depot', color:cs.trim(), values:p.curve, w:2.6},
+    {key:'invest', name:'Eingezahlt', color:col.getPropertyValue('--mut').trim(), values:p.contrib, dash:'6 5', w:1.8},
+  ];
+  if(p.bench.SPY) s.push({key:'spy', name:'S&P 500 (SPY)', color:'#8e7cc3', values:p.bench.SPY, w:1.8});
+  if(p.bench.QQQ) s.push({key:'qqq', name:'Nasdaq 100 (QQQ)', color:'#45b39d', values:p.bench.QQQ, w:1.8});
+  return s;
+}
+function drawChart(pf){
+  const box = $('#chart-'+pf), tip = $('#tip-'+pf);
+  const p = getP(pf);
+  const st = chartState[pf] || (chartState[pf] = {hidden:{}});
+  const all = series(pf), vis = all.filter(s=>!st.hidden[s.key]);
+  const W = Math.max(box.clientWidth-8, 320), H = 280, L=64, R=14, T=14, B=30;
+  const n = p.dates.length;
+  let lo=Infinity, hi=-Infinity;
+  vis.forEach(s=>s.values.forEach(v=>{if(v!=null){lo=Math.min(lo,v);hi=Math.max(hi,v);}}));
+  if(!isFinite(lo)){lo=0;hi=1;}
+  const pad=(hi-lo)*0.08||hi*0.05||1; lo=Math.max(0,lo-pad); hi+=pad;
+  const X=i=>n<2?L+(W-L-R)/2:L+(W-L-R)*i/(n-1), Y=v=>T+(H-T-B)*(1-(v-lo)/(hi-lo));
+  let g='';
+  for(let k=0;k<=4;k++){
+    const v=lo+(hi-lo)*k/4, y=Y(v);
+    g+=`<line x1="${L}" x2="${W-R}" y1="${y}" y2="${y}" stroke="var(--line)" stroke-width="1"/>`;
+    g+=`<text x="${L-8}" y="${y+4}" text-anchor="end" font-size="10.5" fill="var(--mut)" font-weight="600">${nf0.format(v)}</text>`;
+  }
+  const nx=Math.min(n,5);
+  for(let k=0;k<nx;k++){
+    const i=n<2?0:Math.round((n-1)*k/(nx-1||1));
+    g+=`<text x="${X(i)}" y="${H-8}" text-anchor="middle" font-size="10.5" fill="var(--mut)" font-weight="600">${dshort(p.dates[i])}</text>`;
+  }
+  vis.forEach(s=>{
+    const pts=s.values.map((v,i)=>v==null?null:[X(i),Y(v)]).filter(Boolean);
+    if(pts.length===1){
+      g+=`<circle cx="${pts[0][0]}" cy="${pts[0][1]}" r="5" fill="${s.color}"/>`;
+    } else if(pts.length>1){
+      const dstr=pts.map((q,i)=>(i?'L':'M')+q[0].toFixed(1)+' '+q[1].toFixed(1)).join(' ');
+      if(s.key==='depot'){
+        const area=dstr+` L ${pts[pts.length-1][0]} ${H-B} L ${pts[0][0]} ${H-B} Z`;
+        g+=`<path d="${area}" fill="${s.color}" opacity="0.09"/>`;
+      }
+      g+=`<path d="${dstr}" fill="none" stroke="${s.color}" stroke-width="${s.w}" ${s.dash?`stroke-dasharray="${s.dash}"`:''} stroke-linejoin="round" stroke-linecap="round"/>`;
+    }
+  });
+  g+=`<line id="cross-${pf}" x1="0" x2="0" y1="${T}" y2="${H-B}" stroke="var(--mut)" stroke-width="1" stroke-dasharray="3 3" opacity="0"/>`;
+  box.querySelector('svg').setAttribute('viewBox',`0 0 ${W} ${H}`);
+  box.querySelector('svg').innerHTML=g;
+  const svg=box.querySelector('svg');
+  svg.onmousemove=e=>{
+    const r=svg.getBoundingClientRect(), fx=(e.clientX-r.left)*(W/r.width);
+    const i=n<2?0:Math.max(0,Math.min(n-1,Math.round((fx-L)/((W-L-R)/(n-1||1)))));
+    const cr=$('#cross-'+pf); cr.setAttribute('x1',X(i)); cr.setAttribute('x2',X(i)); cr.setAttribute('opacity','.7');
+    let rows=vis.map(s=>s.values[i]==null?'':`<div class="row"><span class="sw" style="background:${s.color}"></span>${s.name}: <b>&nbsp;${usd(s.values[i])}</b></div>`).join('');
+    tip.innerHTML=`<div class="d">${dlong(p.dates[i])}</div>`+rows;
+    tip.style.display='block';
+    const bw=box.clientWidth, tw=tip.offsetWidth;
+    let px=(X(i)/W)*bw+14; if(px+tw>bw-6) px=(X(i)/W)*bw-tw-14;
+    tip.style.left=px+'px'; tip.style.top='18px';
+  };
+  svg.onmouseleave=()=>{tip.style.display='none';$('#cross-'+pf).setAttribute('opacity','0');};
+}
+function renderChips(pf){
+  const el=$('#chips-'+pf), st=chartState[pf]||(chartState[pf]={hidden:{}});
+  el.innerHTML=series(pf).map(s=>`<div class="chip ${st.hidden[s.key]?'off':''}" data-k="${s.key}">
+    <span class="sw" style="background:${s.color}"></span>${s.name}</div>`).join('');
+  el.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{st.hidden[c.dataset.k]=!st.hidden[c.dataset.k];renderChips(pf);drawChart(pf);});
+}
+function chartIds(){return ['strike','shield'].concat(D.sim?['sim-strike','sim-shield']:[]);}
+function renderCharts(){chartIds().forEach(pf=>{renderChips(pf);drawChart(pf);});}
+addEventListener('resize',()=>{clearTimeout(window.__rz);window.__rz=setTimeout(renderCharts,150);});
+
+/* ---------- Depots: KPIs, Holdings, Feed ---------- */
+function riskBadge(r){const c=r==='Niedrig'?'b-nied':r==='Hoch'?'b-hoch':'b-mitt';return `<span class="badge ${c}">${r}</span>`;}
+function scoreCell(s){return `<span class="scorebar"><span class="bar"><span class="fill" style="width:${s}%"></span></span><b>${s}</b></span>`;}
+function renderDepot(pf){
+  const p=D.portfolios[pf], k=p.kpi;
+  const pl=v=>v>=0?'pos':'neg';
+  $('#kpi-'+pf).innerHTML=`
+    <div class="kpi"><div class="l">Depotwert</div><div class="v">${usd(k.value)}</div><div class="s">${eur(k.value)}</div></div>
+    <div class="kpi"><div class="l">Gewinn</div><div class="v ${pl(k.profit)}">${(k.profit>=0?'+':'')+usd(k.profit)}</div><div class="s ${pl(k.profit)}">${pct(k.profit_pct)}</div></div>
+    <div class="kpi"><div class="l">Eingezahlt</div><div class="v">${usd(k.contributed)}</div><div class="s">${eur(k.contributed)}</div></div>
+    <div class="kpi"><div class="l">Investiert</div><div class="v">${usd(k.invested)}</div><div class="s">Cash ${usd(k.cash)}</div></div>
+    <div class="kpi"><div class="l">Positionen</div><div class="v">${p.holdings.length}</div><div class="s">von ${Math.max(k.slots,p.holdings.length)} Slots</div></div>
+    <div class="kpi"><div class="l">Trades</div><div class="v">${k.trades}</div><div class="s">${k.trades?'Trefferquote '+nf0.format(k.winrate)+' %':'noch keine Verkäufe'}</div></div>`;
+  const hb=$('#hold-'+pf);
+  if(!p.holdings.length){hb.innerHTML='<div class="note">Noch keine offenen Positionen — das Depot kauft beim nächsten bestätigten Signal.</div>';}
+  else hb.innerHTML=`<div class="tbl-scroll"><table><thead><tr>
+      <th>Titel</th><th class="num">Anteil</th><th class="num">Einstieg</th><th class="num">Aktuell</th>
+      <th class="num">Stop</th><th class="num">Wert</th><th class="num">P/L</th></tr></thead><tbody>`+
+    p.holdings.map(h=>`<tr><td class="sym">${h.sym}</td>
+      <td class="num">${h.w.toFixed(0)} %</td>
+      <td class="num">${usd2(h.entry)}</td><td class="num">${usd2(h.cur)}</td>
+      <td class="num" style="color:var(--mut)">${usd2(h.stop)}</td>
+      <td class="num">${usd(h.value)}</td>
+      <td class="num"><b class="${h.pnl>=0?'pos':'neg'}">${pct(h.pnl)}</b></td></tr>`).join('')+`</tbody></table></div>`;
+  $('#feed-'+pf).innerHTML=p.events.length?p.events.map(e=>{
+    const t=e.act==='BUY'?['t-buy','Kauf']:e.act==='SELL'?['t-sell','Verkauf']:['t-fund','Einzahlung'];
+    let txt = e.act==='FUND' ? `<b>${usd(e.value)}</b> frisches Kapital`
+      : e.act==='BUY' ? `<span class="sym">${e.sym}</span> — ${usd(e.value)} @ ${usd2(e.price)}${e.w?` · Slot ${e.w.toFixed(0)} %`:''}${e.score?` · Score ${e.score}`:''}`
+      : `<span class="sym">${e.sym}</span> — ${usd(e.value)} @ ${usd2(e.price)} · <b class="${e.pnl>=0?'pos':'neg'}">${pct(e.pnl)}</b>`;
+    return `<div class="ev"><span class="tag ${t[0]}">${t[1]}</span><span>${txt}</span><span class="dt">${dlong(e.date)}</span></div>`;
+  }).join(''):'<div class="note">Noch keine Buchungen.</div>';
+}
+
+/* ---------- Sim-2026-Tab ---------- */
+function renderSim(key){
+  const p=D.sim[key], k=p.kpi, id='sim-'+key;
+  const pl=v=>v>=0?'pos':'neg';
+  $('#kpi-'+id).innerHTML=`
+    <div class="kpi"><div class="l">Endwert</div><div class="v">${usd(k.value)}</div><div class="s">${eur(k.value)}</div></div>
+    <div class="kpi"><div class="l">Gewinn</div><div class="v ${pl(k.profit)}">${(k.profit>=0?'+':'')+usd(k.profit)}</div><div class="s ${pl(k.profit)}">${pct(k.profit_pct)} auf Einzahlungen</div></div>
+    <div class="kpi"><div class="l">Eingezahlt</div><div class="v">${usd(k.contributed)}</div><div class="s">${eur(k.contributed)}</div></div>
+    <div class="kpi"><div class="l">Max-Einbruch</div><div class="v neg">${k.maxdd.toLocaleString('de-DE',{minimumFractionDigits:1,maximumFractionDigits:1})} %</div><div class="s">vom Zwischenhoch</div></div>
+    <div class="kpi"><div class="l">Trades</div><div class="v">${k.trades}</div><div class="s">Trefferquote ${nf0.format(k.winrate)} %</div></div>
+    <div class="kpi"><div class="l">Offen am Ende</div><div class="v">${p.holdings.length}</div><div class="s">von ${k.slots} Slots</div></div>`;
+  const hb=$('#hold-'+id);
+  if(!p.holdings.length){hb.innerHTML='<div class="note">Am Periodenende keine offenen Positionen.</div>';}
+  else hb.innerHTML=`<div class="tbl-scroll"><table><thead><tr>
+      <th>Titel</th><th class="num">Anteil</th><th class="num">Einstieg</th><th class="num">Ende</th>
+      <th class="num">Wert</th><th class="num">P/L</th></tr></thead><tbody>`+
+    p.holdings.map(h=>`<tr><td class="sym">${h.sym}</td><td class="num">${h.w.toFixed(0)} %</td>
+      <td class="num">${usd2(h.entry)}</td><td class="num">${usd2(h.cur)}</td>
+      <td class="num">${usd(h.value)}</td>
+      <td class="num"><b class="${h.pnl>=0?'pos':'neg'}">${pct(h.pnl)}</b></td></tr>`).join('')+`</tbody></table></div>`;
+  const acts={BUY:['t-buy','Kauf'],SELL:['t-sell','Verkauf'],FUND:['t-fund','Einzahlung']};
+  $('#log-'+id).innerHTML=`<div class="tbl-scroll" style="max-height:360px;overflow-y:auto"><table><thead><tr>
+    <th>Datum</th><th>Aktion</th><th>Titel</th><th class="num">Kurs</th><th class="num">Wert</th>
+    <th class="num">P/L</th><th class="num">Score</th></tr></thead><tbody>`+
+    p.events.map(e=>{const t=acts[e.act]||['t-fund',e.act];
+      return `<tr><td class="num" style="color:var(--mut)">${dlong(e.date)}</td>
+      <td><span class="tag ${t[0]}" style="font-size:11px;font-weight:800;border-radius:8px;padding:2px 8px">${t[1]}</span></td>
+      <td class="sym">${e.act==='FUND'?'—':e.sym}</td>
+      <td class="num">${e.act==='FUND'?'—':usd2(e.price)}</td>
+      <td class="num">${usd(e.value)}</td>
+      <td class="num">${e.act==='SELL'?`<b class="${e.pnl>=0?'pos':'neg'}">${pct(e.pnl)}</b>`:'—'}</td>
+      <td class="num">${e.act==='BUY'&&e.score?e.score:'—'}</td></tr>`;}).join('')+
+    `</tbody></table></div>
+    <div class="note">Jede Zeile eine Buchung. Verkäufe = Stop/Trail ausgelöst; „Wert" = bewegtes Kapital.</div>`;
+}
+
+/* ---------- Scan-Tab ---------- */
+const scanF={q:'',minScore:0,risk:{Niedrig:true,Mittel:true,Hoch:true},sort:'score'};
+function renderScan(){
+  const rows=D.scan.filter(r=>r.score>=scanF.minScore && scanF.risk[r.risk] &&
+    (!scanF.q || r.sym.toLowerCase().includes(scanF.q)));
+  rows.sort((a,b)=>scanF.sort==='sym'?a.sym.localeCompare(b.sym):b[scanF.sort]-a[scanF.sort]);
+  $('#scan-count').textContent=rows.length+' von '+D.scan.length;
+  $('#scan-body').innerHTML=rows.length?`<div class="tbl-scroll"><table><thead><tr>
+    <th>Titel</th><th>Score</th><th>Risiko</th><th class="num">Kurs</th><th class="num">Kaufbar bis*</th>
+    <th class="num">Stop</th><th class="num">1-Wochen-Schub</th><th class="num">Katalysator</th></tr></thead><tbody>`+
+    rows.map(r=>`<tr><td class="sym">${r.sym}</td><td>${scoreCell(r.score)}</td><td>${riskBadge(r.risk)}</td>
+      <td class="num">${usd2(r.price)}</td><td class="num">${usd2(r.entry)}</td>
+      <td class="num" style="color:var(--mut)">${usd2(r.stop)}</td>
+      <td class="num ${r.mom_1w>=0?'pos':'neg'}">${pct(r.mom_1w)}</td>
+      <td class="num">${r.cat_gap>0?'<span class="kat">'+pct(r.cat_gap)+'</span>':'—'}</td></tr>`).join('')+
+    `</tbody></table></div>`:'<div class="note">Kein Signal entspricht dem Filter.</div>';
+}
+/* ---------- Watch-Tab ---------- */
+const watchF={q:'',minScore:0,maxDist:4,cat:false};
+function renderWatch(){
+  const rows=D.watch.filter(r=>r.score>=watchF.minScore && r.dist<=watchF.maxDist &&
+    (!watchF.cat||r.cat_gap>0) && (!watchF.q||r.sym.toLowerCase().includes(watchF.q)));
+  rows.sort((a,b)=>a.dist-b.dist);
+  $('#watch-count').textContent=rows.length+' von '+D.watch.length;
+  $('#watch-body').innerHTML=rows.length?`<div class="tbl-scroll"><table><thead><tr>
+    <th>Titel</th><th>Score</th><th class="num">Abstand zum Signal</th><th class="num">Trigger (Schluss drüber = Kauf)</th>
+    <th class="num">Katalysator</th></tr></thead><tbody>`+
+    rows.map(r=>{const fill=Math.max(4,100-(r.dist/4)*100);
+      return `<tr><td class="sym">${r.sym}</td><td>${scoreCell(r.score)}</td>
+      <td class="num distbar"><span class="bar"><span class="fill" style="width:${fill}%"></span></span>${r.dist.toFixed(1).replace('.',',')} %</td>
+      <td class="num">${usd2(r.trigger)}</td>
+      <td class="num">${r.cat_gap>0?'<span class="kat">'+pct(r.cat_gap)+'</span>':'—'}</td></tr>`;}).join('')+
+    `</tbody></table></div>`:'<div class="note">Nichts im Filter.</div>';
+}
+/* Filter-Wiring */
+$('#scan-q').oninput=e=>{scanF.q=e.target.value.toLowerCase();renderScan();};
+$('#scan-score').oninput=e=>{scanF.minScore=+e.target.value;$('#scan-score-v').textContent=e.target.value;renderScan();};
+$('#scan-sort').onchange=e=>{scanF.sort=e.target.value;renderScan();};
+$$('#scan-risk .fchip').forEach(c=>c.onclick=()=>{c.classList.toggle('on');scanF.risk[c.dataset.r]=c.classList.contains('on');renderScan();});
+$('#watch-q').oninput=e=>{watchF.q=e.target.value.toLowerCase();renderWatch();};
+$('#watch-score').oninput=e=>{watchF.minScore=+e.target.value;$('#watch-score-v').textContent=e.target.value;renderWatch();};
+$('#watch-dist').oninput=e=>{watchF.maxDist=+e.target.value;$('#watch-dist-v').textContent=(+e.target.value).toFixed(1).replace('.',',');renderWatch();};
+$('#watch-cat').onclick=e=>{e.target.classList.toggle('on');watchF.cat=e.target.classList.contains('on');renderWatch();};
+
+renderDepot('strike');renderDepot('shield');renderScan();renderWatch();
+if(D.sim){renderSim('strike');renderSim('shield');}else{const t=$('#tab-sim');if(t)t.style.display='none';}
+const validTabs=['depots','scan','watch','info'].concat(D.sim?['sim']:[]);
+openTab(validTabs.includes(location.hash.slice(1))?location.hash.slice(1):'depots');
+</script>
+</body>
+</html>
